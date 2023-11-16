@@ -10,7 +10,8 @@ module tb_alu (
     input [3:0] op,
     input [31:0] a,
     input [31:0] b,
-    output reg [31:0] d
+    output reg [31:0] d,
+    output reg cmp
 );
 
 `ifdef COCOTB_SIM
@@ -32,18 +33,18 @@ end
     reg cy;
     wire cy_in = (counter == 0) ? (op[1] || op[3]) : cy;
     wire [3:0] op_res;
-    wire cy_out, lts;
-    tiny45_alu alu(op, a[counter+:4], b[counter+:4], cy_in, op_res, cy_out, lts);
+    wire cmp_in = (counter == 0) ? 1'b1 : cmp;
+    wire cy_out, cmp_out;
+    tiny45_alu alu(op, a[counter+:4], b[counter+:4], cy_in, cmp_in, op_res, cy_out, cmp_out);
 
     always @(posedge clk) begin
         d[counter+:4] <= op_res;
         cy <= cy_out;
+        cmp <= cmp_out;
 
         if (counter == 5'b11100)
-            if (op[2:0] == 3'b011)
-                d[0] <= ~cy_out;
-            else if (op[2:0] == 3'b010)
-                d[0] <= lts;
+            if (op[2:1] == 2'b01)
+                d[0] <= cmp_out;
     end
 
 endmodule

@@ -1,0 +1,63 @@
+/* A RISC-V core designed to use minimal area.
+  
+   Aim is to support RV32E 
+ */
+
+module tb_decode (
+    input clk,
+    input rstn,
+
+    input [31:0] instr,
+
+    output [31:0] imm,
+
+    output is_load,
+    output is_alu_imm,
+    output is_auipc,
+    output is_store,
+    output is_alu_reg,
+    output is_lui,
+    output is_branch,
+    output is_jalr,
+    output is_jal,
+    output is_system,
+
+    output [3:0] alu_op,  // See tiny45_alu for format
+    output [2:0] mem_op,
+
+    output [3:0] rs1,
+    output [3:0] rs2,
+    output [3:0] rd
+);
+
+`ifdef COCOTB_SIM
+initial begin
+  $dumpfile ("decode.vcd");
+  $dumpvars (0, tb_decode);
+  #1;
+end
+`endif
+
+    tiny45_decoder decoder(instr, 
+        imm,
+
+        is_load,
+        is_alu_imm,
+        is_auipc,
+        is_store,
+        is_alu_reg,
+        is_lui,
+        is_branch,
+        is_jalr,
+        is_jal,
+        is_system,
+
+        alu_op,  // See tiny45_alu for format
+        mem_op,
+
+        rs1,
+        rs2,
+        rd
+             );
+
+endmodule

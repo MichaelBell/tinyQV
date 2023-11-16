@@ -189,3 +189,30 @@ async def test_xor(alu):
 async def test_sub(alu):
     alu.op.value = 0b1000
     await test_op(alu, lambda a, b: a - b)
+
+@cocotb.test()
+async def test_eq(alu):
+    clock = Clock(alu.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    alu.rstn.value = 0
+    await ClockCycles(alu.clk, 2)
+    alu.rstn.value = 1
+    alu.op.value = 0b0100
+
+    a = random.randint(0, 0xFFFFFFFF)
+    b = random.choice((a, random.randint(0, 0xFFFFFFFF)))
+    alu.a.value = a
+    alu.b.value = b
+    await ClockCycles(alu.clk, 1)
+
+    for i in range(100):
+        await ClockCycles(alu.clk, 7)
+        res = 1 if (a == b) else 0
+
+        a = random.randint(0, 0xFFFFFFFF)
+        b = random.choice((a, random.randint(0, 0xFFFFFFFF)))
+        alu.a.value = a
+        alu.b.value = b
+        await ClockCycles(alu.clk, 1)
+
+        assert alu.cmp.value == res
