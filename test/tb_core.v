@@ -10,9 +10,11 @@ module tb_core (
     input [31:0] instr,
     input [31:0] pc,
     input [31:0] data_in,
+    input load_data_ready,
 
     output [31:0] data_out,
-    output ready,
+    output address_ready,
+    output instr_complete,
     output branch
 );
 
@@ -104,9 +106,11 @@ end
         counter[4:2],
         pc[counter+:4],
         data_in[counter+:4],
+        load_data_ready,
 
         data_out,
-        ready,
+        address_ready,
+        instr_complete,
         branch
         );
 
