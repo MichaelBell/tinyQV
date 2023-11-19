@@ -8,6 +8,11 @@
       0111 AND:  D = A & B
       0110 OR:   D = A | B
       0100 XOR/EQ:  D = A ^ B
+
+    Shift instructions (not handled here):
+      0001 SLL: D = A << B
+      0101 SRL: D = A >> B
+      1101 SRA: D = A >> B (signed)
 */
 
 module tiny45_alu (

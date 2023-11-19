@@ -34,7 +34,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     output [31:0] data_out,
     output address_ready,   // The data_out holds the address for the active load/store instruction
-    output instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
+    output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
                             // If no new instruction is available all a NOOP should be issued, which will complete in 1 cycle.
     output branch           // data_out holds the address to branch to
 );
@@ -48,6 +48,14 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
 
     wire last_count = (counter == 7);
+
+    wire is_slt = alu_op[3:1] == 3'b001;
+
+    reg alu_cycles;
+    always @(*) begin
+        if (is_slt) alu_cycles = 1;
+        else alu_cycles = 0;
+    end
 
     reg cy;
     reg cmp;
@@ -67,8 +75,10 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     always @(*) begin
         wr_en = 0;
-        data_rd = alu_out;
+        data_rd = 0;
         if (is_alu_imm || is_alu_reg || is_auipc) begin
+            if (is_slt && cycle == 1 && counter == 0) data_rd = {3'b000, cmp};
+            else data_rd = alu_out;
             wr_en = 1;
         end else if (is_load && load_data_ready) begin  // TODO
             wr_en = 1;
@@ -110,11 +120,23 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         tmp_data <= {tmp_data_in, tmp_data[31:4]};
     end
 
+    always @(*) begin
+        instr_complete = 0;
+        if (last_count) begin
+            if (is_alu_imm || is_alu_reg)
+                instr_complete = cycle == alu_cycles;
+            else if (is_auipc || is_lui)
+                instr_complete = 1;
+            else if (cycle == 1 && is_store)
+                instr_complete = 1;
+            else if (load_done && is_load)
+                instr_complete = 1;
+        end
+    end
+
     // TODO
     assign data_out = tmp_data;  // TODO
     assign address_ready = last_count && (cycle == 0) && (is_load || is_store);
-    assign instr_complete = last_count && (is_alu_imm || is_alu_reg || is_auipc || is_lui ||
-                     (cycle == 1 && is_store) || (load_done && is_load));
     assign branch = 0;
 
 endmodule
