@@ -33,11 +33,12 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [3:0] data_in,
     input load_data_ready,
 
-    output [31:0] data_out,
-    output address_ready,   // The data_out holds the address for the active load/store instruction
+    output [3:0] data_out,  // Data for the active store instruction
+    output [31:0] addr_out,
+    output reg address_ready,   // The addr_out holds the address for the active load/store instruction
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
                             // If no new instruction is available all a NOOP should be issued, which will complete in 1 cycle.
-    output branch           // data_out holds the address to branch to
+    output branch           // addr_out holds the address to branch to
 );
 
     ///////// Register file /////////
@@ -137,9 +138,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (last_count) begin
             if (is_alu_imm || is_alu_reg)
                 instr_complete = cycle == alu_cycles;
-            else if (is_auipc || is_lui)
-                instr_complete = 1;
-            else if (cycle == 1 && is_store)
+            else if (is_auipc || is_lui || is_store)
                 instr_complete = 1;
             else if (load_done && is_load)
                 instr_complete = 1;
@@ -152,7 +151,8 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             load_done <= load_data_ready;
     end
 
-    assign address_ready = last_count && (cycle == 0) && (is_load || is_store);
+    always @(posedge clk)
+        address_ready <= last_count && (cycle == 0) && (is_load || is_store);
 
 
     ///////// Working temporary data /////////
@@ -178,7 +178,8 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             tmp_data <= {tmp_data_in, tmp_data[31:4]};
     end
 
-    assign data_out = tmp_data;  // TODO
+    assign addr_out = tmp_data;
+    assign data_out = data_rs2;
 
 
     ///////// Branching /////////

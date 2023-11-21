@@ -26,12 +26,15 @@ async def test_load_store(dut):
 
         await ClockCycles(dut.clk, 1)
         if i != 0:
+            assert dut.address_ready.value == 1
+            assert dut.addr_out.value.signed_integer == last_offset
             assert dut.data_out.value == last_val
         await ClockCycles(dut.clk, 7)
         assert dut.instr_complete.value == 0
         dut.load_data_ready.value = 1 # This is probably impossible (address is not finished generating yet!), but should work
         await ClockCycles(dut.clk, 1)
-        assert dut.data_out.value.signed_integer == offset
+        assert dut.address_ready.value == 1
+        assert dut.addr_out.value.signed_integer == offset
         await ClockCycles(dut.clk, 7)
         assert dut.instr_complete.value == 1
         dut.load_data_ready.value = 0
@@ -40,12 +43,9 @@ async def test_load_store(dut):
         dut.data_in.value = 0
 
         await ClockCycles(dut.clk, 8)
-        assert dut.instr_complete.value == 0
-        await ClockCycles(dut.clk, 1)
-        assert dut.data_out.value.signed_integer == offset
-        await ClockCycles(dut.clk, 7)
         assert dut.instr_complete.value == 1
         last_val = val
+        last_offset = offset
 
 async def send_instr(dut, instr, cycles=0):
     dut.instr.value = instr
@@ -65,14 +65,17 @@ async def get_reg_value(dut, reg):
     dut.instr.value = InstructionSW(0, reg, 0).encode()
     dut.data_in.value = 0
 
-    await ClockCycles(dut.clk, 9)
-    assert dut.data_out.value.signed_integer == 0
-    await ClockCycles(dut.clk, 7)
+    assert dut.address_ready.value == 0
+    await ClockCycles(dut.clk, 8)
     assert dut.instr_complete.value == 1
+    assert dut.address_ready.value == 0
     dut.instr.value = InstructionNOP().encode()
     await ClockCycles(dut.clk, 1)
+    assert dut.address_ready.value == 1
+    assert dut.addr_out.value.signed_integer == 0
     value = dut.data_out.value
     await ClockCycles(dut.clk, 7)
+    assert dut.address_ready.value == 0
     assert dut.instr_complete.value == 1
     return value
 
