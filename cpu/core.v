@@ -3,6 +3,7 @@
    This core module takes decoded instructions and produces output data
  */
 
+/*verilator lint_off UNUSEDSIGNAL*/
 module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
@@ -39,21 +40,26 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output branch           // data_out holds the address to branch to
 );
 
+    ///////// Register file /////////
+
     wire [3:0] data_rs1;
     wire [3:0] data_rs2;
     reg [3:0] data_rd;
     reg wr_en;
 
+    reg [31:0] tmp_data;
+
     tiny45_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
         i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
 
-    wire last_count = (counter == 7);
+
+    ///////// ALU /////////
 
     wire is_slt = alu_op[3:1] == 3'b001;
 
-    reg alu_cycles;
+    reg [2:0] alu_cycles;
     always @(*) begin
-        if (is_slt) alu_cycles = 1;
+        if (is_slt || is_shift) alu_cycles = 1;
         else alu_cycles = 0;
     end
 
@@ -73,12 +79,35 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         cmp <= cmp_out;
     end
 
+    ///////// Shifter /////////
+
+    wire is_shift = alu_op[1:0] == 2'b01;
+
+    reg [4:0] shift_amt;
+    always @(posedge clk) begin
+        if (cycle == 0) begin
+            if (counter == 0) shift_amt[3:0] <= is_alu_imm ? imm : data_rs2;
+            else if (counter == 1) shift_amt[4] <= is_alu_imm ? imm[0] : data_rs2[0];
+        end
+    end
+
+    wire [3:0] shift_out;
+    tiny45_shifter i_shift(alu_op[3:2], counter, tmp_data, shift_amt, shift_out);
+
+
+    ///////// Writeback /////////
+
     always @(*) begin
         wr_en = 0;
         data_rd = 0;
         if (is_alu_imm || is_alu_reg || is_auipc) begin
-            if (is_slt && cycle == 1 && counter == 0) data_rd = {3'b000, cmp};
-            else data_rd = alu_out;
+            if (is_slt && cycle == 1 && counter == 0)
+                data_rd = {3'b000, cmp};
+            else if (is_shift && cycle == 1)
+                data_rd = shift_out;
+            else
+                data_rd = alu_out;
+
             wr_en = 1;
         end else if (is_load && load_data_ready) begin  // TODO
             wr_en = 1;
@@ -86,8 +115,13 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else if (is_lui) begin
             wr_en = 1;
             data_rd = imm;
-        end       
+        end
     end
+
+
+    ///////// Cycle management /////////
+
+    wire last_count = (counter == 7);
 
     reg [2:0] cycle;
     always @(posedge clk) begin
@@ -96,28 +130,6 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             if (instr_complete) cycle <= 0;
             else if (cycle != 3'b111) cycle <= cycle + 1;
         end
-    end
-
-    reg load_done;
-    always @(posedge clk) begin
-        if (counter == 0)
-            load_done <= load_data_ready;
-    end
-
-    // TODO
-    reg [31:0] tmp_data;
-    reg [3:0] tmp_data_in;
-    
-    always @(*) begin
-        if (cycle == 0) begin
-            tmp_data_in = alu_out;
-        end else begin
-            tmp_data_in = data_rs2;
-        end
-    end
-
-    always @(posedge clk) begin
-        tmp_data <= {tmp_data_in, tmp_data[31:4]};
     end
 
     always @(*) begin
@@ -134,9 +146,44 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    // TODO
-    assign data_out = tmp_data;  // TODO
+    reg load_done;
+    always @(posedge clk) begin
+        if (counter == 0)
+            load_done <= load_data_ready;
+    end
+
     assign address_ready = last_count && (cycle == 0) && (is_load || is_store);
+
+
+    ///////// Working temporary data /////////
+
+    reg [3:0] tmp_data_in;
+    reg tmp_data_shift;
+    
+    always @(*) begin
+        tmp_data_shift = 1;
+        if (is_shift)
+            tmp_data_in = data_rs1;
+        else if (cycle == 0)
+            tmp_data_in = alu_out;
+        else
+            tmp_data_in = data_rs2;
+        
+        if (cycle == 1 && is_shift)
+            tmp_data_shift = 0;
+    end
+
+    always @(posedge clk) begin
+        if (tmp_data_shift)
+            tmp_data <= {tmp_data_in, tmp_data[31:4]};
+    end
+
+    assign data_out = tmp_data;  // TODO
+
+
+    ///////// Branching /////////
+
     assign branch = 0;
 
 endmodule
+/*verilator lint_on UNUSEDSIGNAL*/

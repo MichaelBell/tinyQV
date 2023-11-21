@@ -9,7 +9,9 @@
 
 module tiny45_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
+/*verilator lint_off UNUSEDSIGNAL*/
     input rstn,
+/*verilator lint_on UNUSEDSIGNAL*/
 
     input wr_en,  // Whether to write to rd.
 
@@ -27,6 +29,7 @@ module tiny45_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [31:0] registers [1:NUM_REGS-1];
     wire [3:0] reg_access [0:2**REG_ADDR_BITS-1];
 
+    /*verilator lint_off GENUNNAMED*/
     genvar i;
     generate
         for (i = 0; i < 2**REG_ADDR_BITS; i = i + 1) begin
@@ -50,6 +53,7 @@ module tiny45_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             end
         end
     endgenerate 
+    /*verilator lint_on GENUNNAMED*/
 
     assign data_rs1 = reg_access[rs1];
     assign data_rs2 = reg_access[rs2];

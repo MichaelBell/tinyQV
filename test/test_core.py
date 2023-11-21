@@ -126,6 +126,60 @@ async def test_slt(dut):
     assert await get_reg_value(dut, x2) == 0
     assert await get_reg_value(dut, x5) == 1
 
+@cocotb.test()
+async def test_shift(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+
+    await send_instr(dut, InstructionADDI(x1, x0, 1).encode())
+    await send_instr(dut, InstructionSLLI(x2, x1, 4).encode())
+    assert await get_reg_value(dut, x2) == 16
+    await send_instr(dut, InstructionSLLI(x5, x1, 2).encode())
+    assert await get_reg_value(dut, x5) == 4
+    await send_instr(dut, InstructionSLLI(x5, x1, 0).encode())
+    assert await get_reg_value(dut, x5) == 1
+    await send_instr(dut, InstructionSLLI(x5, x1, 31).encode())
+    assert await get_reg_value(dut, x5) == 0x80000000
+
+    await send_instr(dut, InstructionADDI(x5, x0, 1).encode())
+    await send_instr(dut, InstructionSLL(x2, x1, x5).encode())
+    assert await get_reg_value(dut, x2) == 2
+    await send_instr(dut, InstructionADDI(x5, x5, 15).encode())
+    await send_instr(dut, InstructionSLL(x5, x1, x5).encode())
+    assert await get_reg_value(dut, x5) == 0x10000
+
+    await send_instr(dut, InstructionSRLI(x2, x5, 1).encode())
+    assert await get_reg_value(dut, x2) == 0x8000
+    await send_instr(dut, InstructionSRLI(x2, x5, 4).encode())
+    assert await get_reg_value(dut, x2) == 0x1000
+
+    await send_instr(dut, InstructionSRL(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 0x8000
+    await send_instr(dut, InstructionADDI(x1, x0, 15).encode())
+    await send_instr(dut, InstructionSRL(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 2
+    await send_instr(dut, InstructionADDI(x1, x0, 17).encode())
+    await send_instr(dut, InstructionSRL(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 0
+
+    await send_instr(dut, InstructionSRAI(x2, x5, 15).encode())
+    assert await get_reg_value(dut, x2) == 2
+
+    await send_instr(dut, InstructionSLLI(x5, x5, 15).encode())
+
+    await send_instr(dut, InstructionSRAI(x2, x5, 1).encode())
+    assert await get_reg_value(dut, x2) == 0xC0000000
+    await send_instr(dut, InstructionADDI(x1, x0, 15).encode())
+    await send_instr(dut, InstructionSRA(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 0xFFFF0000
+    await send_instr(dut, InstructionADDI(x1, x0, 17).encode())
+    await send_instr(dut, InstructionSRA(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 0xFFFFC000
+
+
 reg = [0] * 16
 
 # Each Op does reg[d] = fn(a, b)
@@ -160,12 +214,12 @@ ops = [
     Op(InstructionSLT, lambda rs1, rs2: 1 if reg[rs1] < reg[rs2] else 0, 2, "<"),
     Op(InstructionSLTIU, lambda rs1, imm: 1 if (reg[rs1] & 0xFFFFFFFF) < (imm & 0xFFFFFFFF) else 0, 2, "<iu"),
     Op(InstructionSLTU, lambda rs1, rs2: 1 if (reg[rs1] & 0xFFFFFFFF) < (reg[rs2] & 0xFFFFFFFF) else 0, 2, "<u"),
-#    Op(InstructionSLLI, lambda rs1, imm: reg[rs1] << imm, 2, "<<i"),
-#    Op(InstructionSLL, lambda rs1, rs2: reg[rs1] << (reg[rs2] & 0x1F), 2, "<<"),
-#    Op(InstructionSRLI, lambda rs1, imm: (reg[rs1] & 0xFFFFFFFF) >> imm, 2, ">>li"),
-#    Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
-#    Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
-#    Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
+    Op(InstructionSLLI, lambda rs1, imm: reg[rs1] << imm, 2, "<<i"),
+    Op(InstructionSLL, lambda rs1, rs2: reg[rs1] << (reg[rs2] & 0x1F), 2, "<<"),
+    Op(InstructionSRLI, lambda rs1, imm: (reg[rs1] & 0xFFFFFFFF) >> imm, 2, ">>li"),
+    Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
+    Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
+    Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
 ]
 
 @cocotb.test()
