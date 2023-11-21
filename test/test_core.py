@@ -116,6 +116,20 @@ async def test_lui(dut):
     assert await get_reg_value(dut, x2) == (279 << 12) + 3
 
 @cocotb.test()
+async def test_auipc(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+    dut.pc.value = 0x1234
+
+    await send_instr(dut, InstructionAUIPC(x1, 0x279).encode())
+    await send_instr(dut, InstructionADDI(x2, x1, 3).encode())
+    assert await get_reg_value(dut, x1) == 0x27A234
+    assert await get_reg_value(dut, x2) == 0x27A237
+
+@cocotb.test()
 async def test_slt(dut):
     clock = Clock(dut.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
