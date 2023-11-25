@@ -66,6 +66,23 @@ async def get_reg_value(dut, reg):
     assert dut.addr_out.value.signed_integer == 0
     return dut.data_out.value
 
+async def set_reg_value(dut, reg, val):
+    offset = random.randint(-2048, 2047)
+    dut.instr.value = InstructionLW(reg, x3, offset).encode()
+    dut.data_in.value.assign("X")
+
+    await ClockCycles(dut.clk, 8)
+    assert dut.instr_complete.value == 0
+    assert dut.address_ready.value == 1
+    assert dut.addr_out.value.signed_integer == offset + 0x1000
+    dut.load_data_ready.value = 1
+    dut.data_in.value = val
+    await ClockCycles(dut.clk, 8)
+    assert dut.instr_complete.value == 1
+    dut.load_data_ready.value = 0
+    dut.data_in.value.assign("X")
+
+
 @cocotb.test()
 async def test_add(dut):
     clock = Clock(dut.clk, 4, units="ns")
@@ -129,6 +146,135 @@ async def test_slt(dut):
     await send_instr(dut, InstructionSLTI(x5, x1, 2).encode())
     assert await get_reg_value(dut, x2) == 0
     assert await get_reg_value(dut, x5) == 1
+
+@cocotb.test()
+async def test_jal(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+    dut.pc.value = 0x8
+
+    await send_instr(dut, InstructionJAL(x0, 0x2000).encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x2008
+    dut.pc.value = 0x2008
+    await send_instr(dut, InstructionJAL(x2, -0x1000).encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x1008
+    assert await get_reg_value(dut, x2) == 0x2008  # Note it will be the using module's job to supply next PC in this case
+
+@cocotb.test()
+async def test_jalr(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+    dut.pc.value = 0x8
+
+    await send_instr(dut, InstructionADDI(x1, x0, 0x200).encode())
+    await send_instr(dut, InstructionJALR(x0, x1, 0x20).encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x220
+    dut.pc.value = 0x220
+    await send_instr(dut, InstructionAUIPC(x1, 0).encode())
+    await send_instr(dut, InstructionJALR(x2, x1, -0x120).encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x100
+    assert await get_reg_value(dut, x2) == 0x220  # Note it will be the using module's job to supply next PC in this case
+
+@cocotb.test()
+async def test_branch(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+    dut.pc.value = 0x8
+
+    await send_instr(dut, InstructionADDI(x1, x0, 0x200).encode())
+    await send_instr(dut, InstructionADDI(x2, x0, -0x200).encode())
+    await send_instr(dut, InstructionBEQ(x0, x1, 0x20).encode(), 1)
+    assert dut.branch.value == 0
+    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode(), 2)
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x28
+    dut.pc.value = 0x28
+    await send_instr(dut, InstructionBLT(x2, x1, -0x20).encode(), 2)
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x8
+    dut.pc.value = 0x8
+    await send_instr(dut, InstructionBGE(x2, x1, 0x20).encode(), 1)
+    assert dut.branch.value == 0
+    await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode(), 1)
+    assert dut.branch.value == 0
+    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), 2)
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x28
+    dut.pc.value = 0x28
+
+    ops = [
+        (InstructionBEQ, lambda a, b: a == b),
+        (InstructionBNE, lambda a, b: a != b),
+        (InstructionBLT, lambda a, b: a < b),
+        (InstructionBGE, lambda a, b: a >= b),
+        (InstructionBLTU, lambda a, b: (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF)),
+        (InstructionBGEU, lambda a, b: (a & 0xFFFFFFFF) >= (b & 0xFFFFFFFF)),
+    ]
+
+    seed = random.randint(0, 0xFFFFFFFF)
+    dut._log.info("Using seed {}".format(seed))
+    random.seed(seed)
+
+    for i in range(400):
+        r1 = random.randint(0, 15) 
+        r2 = random.randint(0, 15) 
+        a = random.randint(-15, 15)
+        b = random.randint(-15, 15)
+        offset = random.randint(-2048, 2047) * 2
+        dut.pc.value = random.randint(1024, 0x3FF000) * 4
+        await set_reg_value(dut, r1, a)
+        await set_reg_value(dut, r2, b)
+        if r1 == 0: a = 0
+        elif r1 == 3: a = 0x1000
+        elif r1 == 4: a = 0x8000000
+        if r2 == 0: b = 0
+        elif r2 == 3: b = 0x1000
+        elif r2 == 4: b = 0x8000000
+        if r1 == r2: a = b
+        #assert (await get_reg_value(dut, r1)).signed_integer == a
+        #assert (await get_reg_value(dut, r2)).signed_integer == b
+        op = random.choice(ops)
+        #print(a, b, op)
+        await send_instr(dut, op[0](r1, r2, offset).encode())
+        assert dut.branch.value == op[1](a, b)
+        if dut.branch.value == 1:
+            assert dut.addr_out.value == dut.pc.value + offset
+
+    for i in range(400):
+        r1 = random.randint(0, 15) 
+        r2 = random.randint(0, 15) 
+        a = random.randint(-0x80000000, 0x7FFFFFFF)
+        b = random.randint(-0x80000000, 0x7FFFFFFF)
+        offset = random.randint(-2048, 2047) * 2
+        dut.pc.value = random.randint(1024, 0x3FF000) * 4
+        await set_reg_value(dut, r1, a)
+        await set_reg_value(dut, r2, b)
+        if r1 == 0: a = 0
+        elif r1 == 3: a = 0x1000
+        elif r1 == 4: a = 0x8000000
+        if r2 == 0: b = 0
+        elif r2 == 3: b = 0x1000
+        elif r2 == 4: b = 0x8000000
+        if r1 == r2: a = b
+        op = random.choice(ops)
+        await send_instr(dut, op[0](r1, r2, offset).encode())
+        assert dut.branch.value == op[1](a, b)
+        if dut.branch.value == 1:
+            assert dut.addr_out.value == dut.pc.value + offset
+
 
 @cocotb.test()
 async def test_shift(dut):
@@ -244,11 +390,11 @@ async def test_random(dut):
             if i == 3: reg[i] = 0x1000
             elif i == 4: reg[i] = 0x8000000
             else:
-                reg[i] = random.randint(-2048, 2047)
+                reg[i] = random.randint(-0x80000000, 0x7FFFFFFF)
                 if debug: print("Set reg {} to {}".format(i, reg[i]))
-                await send_instr(dut, InstructionADDI(i, x0, reg[i]).encode())
+                await set_reg_value(dut, i, reg[i])
 
-        if True:
+        if False:
             for i in range(16):
                 reg_value = (await get_reg_value(dut, i)).signed_integer
                 if debug: print("Reg {} is {}".format(i, reg_value))

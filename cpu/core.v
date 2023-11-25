@@ -29,7 +29,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [REG_ADDR_BITS-1:0] rd,
 
     input [2:0] counter,    // Sub cycle counter, must increment on every clock
-    input [3:0] pc,
+    input [3:0] pc,         // For AUIPC this is the PC of the current instruction.  For JAL/JALR this needs to be the PC of the next instruction
     input [3:0] data_in,
     input load_data_ready,
 
@@ -66,14 +66,15 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg cy;
     reg cmp;
-    wire [3:0] alu_a_in = is_auipc ? pc : data_rs1;
-    wire [3:0] alu_b_in = is_alu_reg ? data_rs2 : imm;
+    wire [3:0] alu_op_in = (is_branch && cycle == 1) ? 0 : alu_op;
+    wire [3:0] alu_a_in = (is_auipc || is_jal || (is_branch && cycle == 1)) ? pc : data_rs1;
+    wire [3:0] alu_b_in = (is_alu_reg || (is_branch && cycle == 0)) ? data_rs2 : imm;
     wire [3:0] alu_out;
-    wire cy_in = (counter == 0) ? (alu_op[1] || alu_op[3]) : cy;
+    wire cy_in = (counter == 0) ? (alu_op_in[1] || alu_op_in[3]) : cy;
     wire cmp_in = (counter == 0) ? 1'b1 : cmp;
     wire cy_out, cmp_out;
 
-    tiny45_alu i_alu(alu_op, alu_a_in, alu_b_in, cy_in, cmp_in, alu_out, cy_out, cmp_out);
+    tiny45_alu i_alu(alu_op_in, alu_a_in, alu_b_in, cy_in, cmp_in, alu_out, cy_out, cmp_out);
 
     always @(posedge clk) begin
         cy <= cy_out;
@@ -116,8 +117,17 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else if (is_lui) begin
             wr_en = 1;
             data_rd = imm;
+        end else if (is_jal || is_jalr) begin
+            wr_en = 1;
+            data_rd = pc;
         end
     end
+
+
+    ///////// Branching /////////
+
+    assign branch = last_count && ((cycle == 0 && (is_jal || is_jalr)) || (cycle == 1 && is_branch));
+    wire take_branch = last_count && (cmp_out ^ mem_op[0]);
 
 
     ///////// Cycle management /////////
@@ -138,10 +148,14 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (last_count) begin
             if (is_alu_imm || is_alu_reg)
                 instr_complete = cycle == alu_cycles;
-            else if (is_auipc || is_lui || is_store)
+            else if (is_auipc || is_lui || is_store || is_jal || is_jalr)
                 instr_complete = 1;
             else if (load_done && is_load)
                 instr_complete = 1;
+            else if (is_branch) begin
+                if (cycle == 0 && !take_branch) instr_complete = 1;
+                else if (cycle == 1) instr_complete = 1;
+            end
         end
     end
 
@@ -164,7 +178,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         tmp_data_shift = 1;
         if (is_shift)
             tmp_data_in = data_rs1;
-        else if (cycle == 0)
+        else if (cycle == 0 || is_branch)
             tmp_data_in = alu_out;
         else
             tmp_data_in = data_rs2;
@@ -180,11 +194,6 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     assign addr_out = tmp_data[31:4];
     assign data_out = data_rs2;
-
-
-    ///////// Branching /////////
-
-    assign branch = 0;
 
 endmodule
 /*verilator lint_on UNUSEDSIGNAL*/
