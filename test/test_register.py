@@ -53,7 +53,7 @@ async def test_registers(reg):
 
     j = 0
     val = 0
-    reg_vals = [0, 0xA5948372, 0, 0x1000, 0x10000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    reg_vals = [0, 0xA5948372, 0, 0x1000, 0x8000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     for i in range(6, 16):
         reg.rd.value = i
@@ -72,7 +72,7 @@ async def test_registers(reg):
         last_j = j
         if last_j == 0: last_val = 0
         elif last_j == 3: last_val = 0x1000
-        elif last_j == 4: last_val = 0x10000000
+        elif last_j == 4: last_val = 0x8000000
         else: reg_vals[last_j] = last_val
         val = random.randint(0, 0xFFFFFFFF)
         j = random.randint(0, 15)
@@ -90,7 +90,7 @@ async def test_registers(reg):
     last_j = j
     if last_j == 0: last_val = 0
     elif last_j == 3: last_val = 0x1000
-    elif last_j == 4: last_val = 0x10000000
+    elif last_j == 4: last_val = 0x8000000
     else: reg_vals[last_j] = last_val
 
     reg.rs1.value = 0

@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2, x5
+from riscvmodel.regnames import x0, x1, x2, x3, x5
 
 @cocotb.test()
 async def test_load_store(dut):
@@ -18,34 +18,29 @@ async def test_load_store(dut):
 
     for i in range(400):
         reg = random.randint(5, 15)
-        # base_reg = random.randint(0, 15)
         offset = random.randint(-2048, 2047)
         val = random.randint(0, 0xFFFFFFFF)
-        dut.instr.value = InstructionLW(reg, 0, offset).encode()
-        dut.data_in.value = val
+        dut.instr.value = InstructionLW(reg, x3, offset).encode()
+        dut.data_in.value.assign("X")
 
-        await ClockCycles(dut.clk, 1)
-        if i != 0:
-            assert dut.address_ready.value == 1
-            assert dut.addr_out.value.signed_integer == last_offset
-            assert dut.data_out.value == last_val
-        await ClockCycles(dut.clk, 7)
+        await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 0
-        dut.load_data_ready.value = 1 # This is probably impossible (address is not finished generating yet!), but should work
-        await ClockCycles(dut.clk, 1)
         assert dut.address_ready.value == 1
-        assert dut.addr_out.value.signed_integer == offset
-        await ClockCycles(dut.clk, 7)
+        assert dut.addr_out.value.signed_integer == offset + 0x1000
+        dut.load_data_ready.value = 1
+        dut.data_in.value = val
+        await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 1
         dut.load_data_ready.value = 0
+        dut.data_in.value.assign("X")
 
-        dut.instr.value = InstructionSW(0, reg, offset).encode()
-        dut.data_in.value = 0
+        dut.instr.value = InstructionSW(x3, reg, offset).encode()
 
         await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 1
-        last_val = val
-        last_offset = offset
+        assert dut.address_ready.value == 1
+        assert dut.addr_out.value.signed_integer == offset + 0x1000
+        assert dut.data_out.value == val
 
 async def send_instr(dut, instr, cycles=0):
     dut.instr.value = instr
@@ -65,19 +60,11 @@ async def get_reg_value(dut, reg):
     dut.instr.value = InstructionSW(0, reg, 0).encode()
     dut.data_in.value = 0
 
-    assert dut.address_ready.value == 0
     await ClockCycles(dut.clk, 8)
     assert dut.instr_complete.value == 1
-    assert dut.address_ready.value == 0
-    dut.instr.value = InstructionNOP().encode()
-    await ClockCycles(dut.clk, 1)
     assert dut.address_ready.value == 1
     assert dut.addr_out.value.signed_integer == 0
-    value = dut.data_out.value
-    await ClockCycles(dut.clk, 7)
-    assert dut.address_ready.value == 0
-    assert dut.instr_complete.value == 1
-    return value
+    return dut.data_out.value
 
 @cocotb.test()
 async def test_add(dut):
@@ -255,7 +242,7 @@ async def test_random(dut):
         dut._log.info("Running test with seed {}".format(seed + test))
         for i in range(1, 16):
             if i == 3: reg[i] = 0x1000
-            elif i == 4: reg[i] = 0x10000000
+            elif i == 4: reg[i] = 0x8000000
             else:
                 reg[i] = random.randint(-2048, 2047)
                 if debug: print("Set reg {} to {}".format(i, reg[i]))

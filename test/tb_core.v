@@ -12,7 +12,7 @@ module tb_core (
     input [31:0] data_in,
     input load_data_ready,
 
-    output reg [31:0] data_out,
+    output [31:0] data_out,
     output [31:0] addr_out,
     output address_ready,
     output instr_complete,
@@ -72,15 +72,20 @@ end
     reg [4:0] counter;
     wire [4:0] next_counter = counter + 4;
 
-    reg [3:0] data_out_slice;
+    wire [3:0] data_out_slice;
+    reg [31:0] data_out_reg;
     always @(posedge clk) begin
         if (!rstn) begin
             counter <= 0;
         end else begin
             counter <= next_counter;
         end
-        data_out[counter+:4] <= data_out_slice;
+        data_out_reg[counter+:4] <= data_out_slice;
     end
+
+    assign data_out[31:28] = data_out_slice;
+    assign data_out[27:0] = data_out_reg;
+    assign addr_out[31:28] = 0;
 
     tiny45_core core(clk,
         rstn,
@@ -111,7 +116,7 @@ end
         load_data_ready,
 
         data_out_slice,
-        addr_out,
+        addr_out[27:0],
         address_ready,
         instr_complete,
         branch

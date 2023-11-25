@@ -4,7 +4,7 @@ Idea is to implement a 4 bit at a time RV32 processor, similar to [nanoV](https:
 
 Aim will be to fit in a 2x2 tile size.  Guiding principle is fast as practical on Tiny Tapeout while minimizing area.
 
-## Design Idea
+## Design goals
 
 RV32EC (maybe some partial support for M?)
 
@@ -16,18 +16,18 @@ Peripherals so it can do basic microcontroller things, currently thinking 1 UART
 
 ### QPSI PMOD
 
-Plan is a PMOD for the bidis with W25Q128JVSIQ (16MB flash) and 2xAPS6404L-3SQR-ZR (8MB RAM)  (Cost for 5: ~£20 for PSRAMs, ~£3 for flash, ~£12.50 assembly, ~£10 shipping: <£50) - note that was assuming JLCPCB assembly - might be using Aisler instead if TT is making these.  Probably better to use APS6404L-3SQR-SN, but JLCPCB didn't seem to be listing it.
+Plan is a PMOD for the bidis with W25Q128JVSIQ (16MB flash) and 2xAPS6404L-3SQR-SN (8MB RAM).  Need to redesign this board in KiCad and work out how to get it assembled.
 
 Agreed this pinout for the PMOD
 ```
-	uio[0] - CS0
+	uio[0] - CS0 (Flash)
 	uio[1] - SD0/MOSI
 	uio[2] - SD1/MISO
 	uio[3] - SCK
 	uio[4] - SD2
 	uio[5] - SD3
-	uio[6] - CS1
-	uio[7] - CS2
+	uio[6] - CS1 (RAMA)
+	uio[7] - CS2 (RAMB)
 ```
 
 ### Performance
@@ -38,15 +38,17 @@ Should be able to execute 1 cycle 16-bit instructions at one instruction every 8
 
 ## Risc-V details
 
-Full RV32EC
+Fullish RV32EC, with a few exceptions:
+- Addresses are 28-bits
+- gp is hardcoded to 0x1000, tp is hardcoded to 0x8000000.  Peripherals will have addresses in the 2K above tp, so it an be used for fast access.  gp can be used for fast access to data at the bottom of flash.
 
 Only M mode is supported.
 
-Unlinke nanoV, EBREAK and ECALL will be implemented, trapping with cause 3 and 11 respectively.
+Unlike nanoV, EBREAK and ECALL will be implemented, trapping with cause 3 and 11 respectively.
 
-Should we hardcode gp and tp again?  It doesn't seem to have caused any trouble in running general code on nanoV, so I'm tempted to.
+Hardcoding gp and tp - it doesn't seem to have caused any trouble in running general code on nanoV, and is similar to the "normal" ABI usage of these registers, so it seems a sensible saving.
 
-Will not bother trying to detect and correctly handle all traps, for area saving.  Not aiming for full compliance.
+Will not bother trying to detect and correctly handle all traps/illegal/unsupported instructions, for area saving.  Not aiming for full compliance.
 
 Would be nice to implement WFI
 
@@ -54,12 +56,12 @@ No need for MRET - only M mode is supported so the trap handler can simply jump 
 
 CSRs:
 - CYCLE - will provide a 32 (or possibly 24) bit cycle counter
-- TIME - will return CYCLE.
+- TIME - will return CYCLE - or could we have a programmable divider?
 - INSTRET - would be nice to provide this
 - (MSTATUS - probably not bother)
 - MISA - read only
 - (MTVEC - probably not bother, or read only, hardcode to 0.)
-- MIE & MIP - yes, but custom interrupts only - MSI/MTI/MEI probably not implemented as the spec'd behaviour is a bit odd:
+- MIE & MIP - yes, but custom interrupts only - MSI/MTI/MEI probably not implemented as the spec'd behaviour is a bit odd.  Custom interrupts:
 ```
     16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
 	17 - triggered on rising edge of in1 (cleared by clearing bit in MIP)
@@ -82,6 +84,13 @@ Use Fast Read (0Bh) for reads, 66MHz limit is no problem here.  Gives 12 cycles 
 My thought is that code execution is only supported from the flash, this potentially simplifies things a little and also removes the need for handling the PSRAM refresh every 8us in the case of long instruction sequences with no loads/stores/branches - all reads and writes to the PSRAM will be short.
 
 Overall this means that stores to RAM are likely to cost at least 20 33MHz cycles = 5 minimum cost instructions, and loads 24 = 6 minimum cost instructions.  So similar proportional cost as nanoV, but the baseline is 8x faster.
+
+## Address map
+
+0x0000000 - 0x0FFFFFF: Flash (CS0)
+0x1000000 - 0x17FFFFF: RAM A (CS1)
+0x1800000 - 0x1FFFFFF: RAM B (CS2)
+0x8000000 = 0x80007FF: Peripheral registers (TBD)
 
 ## Pinout
 
@@ -111,4 +120,11 @@ out7 - GPIO
 
 Probably stick to the same UART as in nanoV, maybe configured for 115200 when running at 66MHz?  Not loads of point in extra buffering as could only afford another byte or two and you normally printf a bunch of chars together.
 
-SPI is new.  Find/write a simple controller.  Target is to make using the ST7789 screen reasonably painless.  Maybe 1 extra byte of buffer (make it configurable), mostly as a proof of concept.
+SPI is new.  Find/write a simple controller.  Target is to make using the ST7789 screen reasonably painless - maybe could support D/C toggling?  Maybe 1 extra byte of buffer (make it configurable), mostly as a proof of concept.
+
+## FPGA testing
+
+Plan is to do initial testing with the Pico-Ice.  Advantages of this:
+- The FPGA has access to 4MB QSPI flash and 8MB QSPI PSRAM
+- You can use the whole of the flash, because the FPGA bitstream can be loaded from the separate RP2040 flash
+- RP2040 can work as a logic analyser for debugging, and is good for testing UART, SPI and GPIO peripherals too.

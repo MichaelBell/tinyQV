@@ -37,8 +37,8 @@ module tiny45_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 assign reg_access[i] = 0;
             end else if (i == 3) begin // gp is hardcoded to 0x00001000
                 assign reg_access[i] = {3'b0, (counter == 3)};
-            end else if (i == 4) begin // tp is hardcoded to 0x10000000
-                assign reg_access[i] = {3'b0, (counter == 7)};
+            end else if (i == 4) begin // tp is hardcoded to 0x08000000
+                assign reg_access[i] = {(counter == 6), 3'b0};
             end else begin
                 always @(posedge clk) begin
                     if (wr_en && rd == i)
