@@ -3,7 +3,6 @@
    This core module takes decoded instructions and produces output data
  */
 
-/*verilator lint_off UNUSEDSIGNAL*/
 module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
@@ -19,7 +18,9 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input is_branch,
     input is_jalr,
     input is_jal,
+/*verilator lint_off UNUSEDSIGNAL*/
     input is_system,
+/*verilator lint_on UNUSEDSIGNAL*/
 
     input [3:0] alu_op,  // See tiny45_alu for format
     input [2:0] mem_op,
@@ -33,7 +34,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [3:0] data_in,
     input load_data_ready,
 
-    output [3:0] data_out,  // Data for the active store instruction
+    output reg [3:0] data_out,  // Data for the active store instruction
     output [27:0] addr_out,
     output address_ready,   // The addr_out holds the address for the active load/store instruction  // Required?
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
@@ -99,10 +100,26 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Writeback /////////
 
+    reg load_top_bit_next;
+    reg load_top_bit;
+    always @(*) begin
+        load_top_bit_next = (counter == 0) ? 0 : load_top_bit;
+        if (is_load && load_data_ready &&
+            ((mem_op == 3'b001 && counter == 3) || 
+             (mem_op == 3'b000 && counter == 1)))
+        begin
+            load_top_bit_next = data_in[3];
+        end
+    end
+
+    always @(posedge clk)
+        load_top_bit <= load_top_bit_next;
+
     always @(*) begin
         wr_en = 0;
         data_rd = 0;
         if (is_alu_imm || is_alu_reg || is_auipc) begin
+            wr_en = 1;
             if (is_slt && cycle == 1 && counter == 0)
                 data_rd = {3'b000, cmp};
             else if (is_shift && cycle == 1)
@@ -110,10 +127,14 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             else
                 data_rd = alu_out;
 
+        end else if (is_load && load_data_ready) begin
             wr_en = 1;
-        end else if (is_load && load_data_ready) begin  // TODO
-            wr_en = 1;
-            data_rd = data_in;
+            if ((mem_op[1:0] == 2'b00 && counter > 1) ||
+                (mem_op[1:0] == 2'b01 && counter > 3))
+                data_rd = {4{load_top_bit}};
+            else
+                data_rd = data_in;
+
         end else if (is_lui) begin
             wr_en = 1;
             data_rd = imm;
@@ -193,7 +214,12 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     assign addr_out = tmp_data[31:4];
-    assign data_out = data_rs2;
+
+    always @(*) begin
+        data_out = data_rs2;
+        if ((mem_op[1:0] == 2'b00 && counter > 1) ||
+            (mem_op[1:0] == 2'b01 && counter > 3))
+            data_out = 0;
+    end
 
 endmodule
-/*verilator lint_on UNUSEDSIGNAL*/
