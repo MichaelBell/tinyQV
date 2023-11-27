@@ -36,7 +36,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     output reg [3:0] data_out,  // Data for the active store instruction
     output [27:0] addr_out,
-    output address_ready,   // The addr_out holds the address for the active load/store instruction  // Required?
+    output address_ready,   // The addr_out holds the address for the active load/store instruction
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
                             // If no new instruction is available all a NOOP should be issued, which will complete in 1 cycle.
     output branch           // addr_out holds the address to branch to
@@ -186,7 +186,6 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             load_done <= load_data_ready;
     end
 
-    // Maybe just implicit - this doesn't really add anything
     assign address_ready = last_count && (cycle == 0) && (is_load || is_store);
 
 

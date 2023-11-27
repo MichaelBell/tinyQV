@@ -40,6 +40,7 @@ async def test_load(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value.signed_integer == offset
         assert dut.alu_op.value == 0  # ADD
@@ -88,6 +89,7 @@ async def test_alu_imm(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         if op[2]: assert dut.imm.value.signed_integer == imm
         else: assert dut.imm.value & 0x1F == imm
@@ -136,6 +138,7 @@ async def test_alu_reg(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.alu_op.value == op[1]
 
@@ -167,6 +170,7 @@ async def test_auipc(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value == offset << 12
         assert dut.alu_op.value == 0  # ADD
@@ -205,6 +209,7 @@ async def test_store(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value.signed_integer == offset
         assert dut.alu_op.value == 0  # ADD
@@ -237,6 +242,7 @@ async def test_lui(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value == imm << 12
         
@@ -278,6 +284,7 @@ async def test_branch(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.alu_op.value == op[1]
         assert dut.mem_op.value & 1 == op[2]
@@ -311,6 +318,7 @@ async def test_jalr(dut):
         assert dut.is_jalr.value == 1
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value.signed_integer == offset
         
@@ -342,6 +350,7 @@ async def test_jal(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 1
         assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
 
         assert dut.imm.value.signed_integer == offset
         
@@ -369,4 +378,5 @@ async def test_system(dut):
         assert dut.is_jalr.value == 0
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 1
+        assert dut.instr_len.value == 4
 

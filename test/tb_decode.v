@@ -22,6 +22,8 @@ module tb_decode (
     output is_jal,
     output is_system,
 
+    output [2:0] instr_len,
+
     output [3:0] alu_op,  // See tiny45_alu for format
     output [2:0] mem_op,
 
@@ -52,6 +54,8 @@ end
         is_jal,
         is_system,
 
+        instr_len[2:1],
+
         alu_op,  // See tiny45_alu for format
         mem_op,
 
@@ -59,5 +63,7 @@ end
         rs2,
         rd
              );
+
+    assign instr_len[0] = 1'b0;
 
 endmodule

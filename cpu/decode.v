@@ -19,6 +19,8 @@ module tiny45_decoder #(parameter REG_ADDR_BITS=4) (
     output is_jal,
     output is_system,
 
+    output [2:1] instr_len,
+
     output reg [3:0] alu_op,  // See tiny45_alu for format
 
     output [2:0] mem_op,      // Bit 0 of mem_op indicates branch condition is reversed
@@ -53,6 +55,8 @@ module tiny45_decoder #(parameter REG_ADDR_BITS=4) (
         else if (is_jal) imm = Jimm;
         else imm = Iimm;
     end
+
+    assign instr_len = (instr[1:0] == 2'b11) ? 2'b10 : 2'b01;
 
     // Determine alu op
     always @(*) begin

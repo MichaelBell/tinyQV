@@ -40,6 +40,7 @@ end
     wire is_jal;
     wire is_system;
 
+    wire [2:1] instr_len;
     wire [3:0] alu_op;  // See tiny45_alu for format
     wire [2:0] mem_op;
 
@@ -61,6 +62,7 @@ end
         is_jal,
         is_system,
 
+        instr_len,
         alu_op,  // See tiny45_alu for format
         mem_op,
 
@@ -84,7 +86,7 @@ end
     end
 
     assign data_out[31:28] = data_out_slice;
-    assign data_out[27:0] = data_out_reg;
+    assign data_out[27:0] = data_out_reg[27:0];
     assign addr_out[31:28] = 0;
 
     tiny45_core core(clk,
