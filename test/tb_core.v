@@ -104,6 +104,7 @@ end
         is_jalr,
         is_jal,
         is_system,
+        1'b0,
 
         alu_op,
         mem_op,

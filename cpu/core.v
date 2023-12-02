@@ -21,6 +21,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 /*verilator lint_off UNUSEDSIGNAL*/
     input is_system,
 /*verilator lint_on UNUSEDSIGNAL*/
+    input is_stall,
 
     input [3:0] alu_op,  // See tiny45_alu for format
     input [2:0] mem_op,
@@ -169,7 +170,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (last_count) begin
             if (is_alu_imm || is_alu_reg)
                 instr_complete = cycle == alu_cycles;
-            else if (is_auipc || is_lui || is_store || is_jal || is_jalr)
+            else if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_stall)
                 instr_complete = 1;
             else if (load_done && is_load)
                 instr_complete = 1;
