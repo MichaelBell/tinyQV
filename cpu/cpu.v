@@ -143,9 +143,13 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     wire [3:0] data_out_slice;
+    reg data_ready_latch;
+    reg data_ready_core;
     always @(posedge clk) begin
         if (!rstn) begin
             counter_hi <= 0;
+            data_ready_core <= 0;
+            data_ready_latch <= 0;
         end else begin
             counter_hi <= counter_hi + 1;
         end
@@ -160,6 +164,17 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
         data_write_n <= (is_store && address_ready) ? mem_op[1:0] : 2'b11; 
         data_read_n  <= (is_load && address_ready)  ? mem_op[1:0] : 2'b11;
+
+        if (counter_hi == 7) begin
+            data_ready_latch <= 0;
+            if (data_ready || data_ready_latch) begin
+                data_ready_core <= 1;
+            end else begin
+                data_ready_core <= 0;
+            end
+        end else if (!data_ready_latch) begin
+            data_ready_latch <= data_ready;
+        end
     end
 
     tiny45_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
@@ -190,7 +205,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         counter[4:2],
         pc[counter+:4],
         data_in[counter+:4],
-        data_ready,
+        data_ready_core,
 
         data_out_slice,
         addr_out,
