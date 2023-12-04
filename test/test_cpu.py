@@ -209,7 +209,7 @@ async def test_random_alu(dut):
             assert reg_value & 0xFFFFFFFF == reg[i] & 0xFFFFFFFF
 
 @cocotb.test()
-async def test_branch(dut):
+async def test_jump(dut):
     await start(dut)
 
     await send_instr(dut, InstructionJAL(x1, 0x5678).encode())
@@ -224,3 +224,27 @@ async def test_branch(dut):
     assert await read_reg(dut, x2) == 0x5688
     assert await read_reg(dut, x1) == 0x100
 
+    await send_instr(dut, InstructionJALR(x2, x1, 0x20).encode())
+    await expect_branch(dut, 0x120)
+    assert await read_reg(dut, x2) == 0x4690
+
+    await send_instr(dut, InstructionAUIPC(x1, 0x1).encode())
+    await send_instr(dut, InstructionJALR(x2, x1, -0x20).encode())
+    await expect_branch(dut, 0x1104)
+    assert await read_reg(dut, x2) == 0x12C
+
+@cocotb.test()
+async def test_branch(dut):
+    await start(dut)
+
+    await send_instr(dut, InstructionADDI(x1, x0, 0x200).encode())
+    await send_instr(dut, InstructionADDI(x2, x0, -0x200).encode())
+    await send_instr(dut, InstructionBEQ(x0, x1, 0x20).encode())
+    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode())
+    await expect_branch(dut, 0x2C)
+    await send_instr(dut, InstructionBLT(x2, x1, -0x1C).encode())
+    await expect_branch(dut, 0x10)
+    await send_instr(dut, InstructionBGE(x2, x1, 0x20).encode())
+    await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode())
+    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode())
+    await expect_branch(dut, 0x38)
