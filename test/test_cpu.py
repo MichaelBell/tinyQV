@@ -7,15 +7,17 @@ from cocotb.triggers import Timer, ClockCycles
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3, x5
 
-async def send_instr(dut, instr):
+async def send_instr(dut, instr, fast=False):
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
-    await ClockCycles(dut.clk, 7)
+    if not fast:
+        await ClockCycles(dut.clk, 7)
     dut.instr_data_in.value = instr & 0xFFFF
     dut.instr_ready.value = 1
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
-    await ClockCycles(dut.clk, 7)
+    if not fast:
+        await ClockCycles(dut.clk, 7)
     dut.instr_data_in.value = (instr >> 16) & 0xFFFF
     dut.instr_ready.value = 1
 
@@ -34,8 +36,21 @@ async def read_reg(dut, reg):
             assert dut.data_write_n.value == 0b10
             assert dut.data_addr.value == offset
             return dut.data_out.value
-    else:
-        assert False
+
+    assert False
+
+async def expect_branch(dut, addr):
+    await ClockCycles(dut.clk, 1)
+    dut.instr_ready.value = 0
+    assert dut.instr_fetch_restart.value == 0
+
+    for i in range(24):
+        await ClockCycles(dut.clk, 1)
+        if dut.instr_fetch_restart.value == 1:
+            assert dut.instr_addr.value == addr >> 1
+            return
+
+    assert False
 
 async def load_reg(dut, reg, value):
     offset = random.randint(0, 0x7FF)
@@ -192,3 +207,20 @@ async def test_random_alu(dut):
             reg_value = (await read_reg(dut, i)).signed_integer
             if debug: print("Reg x{} = {} should be {}".format(i, reg_value, reg[i]))
             assert reg_value & 0xFFFFFFFF == reg[i] & 0xFFFFFFFF
+
+@cocotb.test()
+async def test_branch(dut):
+    await start(dut)
+
+    await send_instr(dut, InstructionJAL(x1, 0x5678).encode())
+    await expect_branch(dut, 0x5678)
+    assert await read_reg(dut, x1) == 0x4
+
+    await send_instr(dut, InstructionADDI(x1, x0, 0x40).encode())
+    await send_instr(dut, InstructionADDI(x1, x0, 0x100).encode())
+    await send_instr(dut, InstructionJAL(x2, -0x1000).encode())
+    await send_instr(dut, InstructionADDI(x1, x0, 0x80).encode(), True)
+    await expect_branch(dut, 0x4684)
+    assert await read_reg(dut, x2) == 0x5688
+    assert await read_reg(dut, x1) == 0x100
+

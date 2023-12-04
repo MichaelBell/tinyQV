@@ -89,6 +89,8 @@ end
     assign data_out[27:0] = data_out_reg[27:0];
     assign addr_out[31:28] = 0;
 
+    wire [31:0] next_pc = pc + {29'd0, instr_len, 1'b0};
+
     tiny45_core core(clk,
         rstn,
         
@@ -115,6 +117,7 @@ end
 
         counter[4:2],
         pc[counter+:4],
+        next_pc[counter+:4],
         data_in[counter+:4],
         load_data_ready,
 

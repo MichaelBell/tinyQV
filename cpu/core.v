@@ -31,7 +31,8 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [REG_ADDR_BITS-1:0] rd,
 
     input [2:0] counter,    // Sub cycle counter, must increment on every clock
-    input [3:0] pc,         // For AUIPC this is the PC of the current instruction.  For JAL/JALR this needs to be the PC of the next instruction
+    input [3:0] pc,
+    input [3:0] next_pc,
     input [3:0] data_in,
     input load_data_ready,
 
@@ -141,7 +142,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             data_rd = imm;
         end else if (is_jal || is_jalr) begin
             wr_en = 1;
-            data_rd = pc;
+            data_rd = next_pc;
         end
     end
 

@@ -97,6 +97,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg instr_valid;
 
     wire [31:0] pc;
+    wire [31:0] next_pc_for_core;
 
     wire [27:0] addr_out;
     wire address_ready;
@@ -138,7 +139,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             rs1 <= rs1_de;
             rs2 <= rs2_de;
             rd <= rd_de;
-            instr_valid <= ({1'b0,instr_len_de} <= instr_avail_len);
+            instr_valid <= ({1'b0,instr_len_de} <= instr_avail_len) && !branch;
         end
     end
 
@@ -204,6 +205,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
         counter[4:2],
         pc[counter+:4],
+        next_pc_for_core[counter+:4],
         data_in[counter+:4],
         data_ready_core,
 
@@ -226,6 +228,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg instr_fetch_running;
 
     wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
+    wire [23:0] next_pc = {instr_data_start, 3'b000} + {20'd0, next_pc_offset, 1'b0};
     wire pc_wrap = next_pc_offset[3] && instr_complete && instr_valid;
     wire [3:1] instr_avail_len = instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
 
@@ -259,9 +262,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
                 if (instr_complete && instr_valid) begin
                     pc_offset <= next_pc_offset[2:1];
-                    if (next_pc_offset[3]) begin
-                        instr_data_start <= instr_data_start + 21'd1;
-                    end
+                    instr_data_start <= next_pc[23:3];
                 end
                 if (instr_ready && instr_fetch_running) begin
                     instr_data[instr_write_offset[2:1]] <= instr_data_in;
@@ -270,12 +271,13 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    assign instr_fetch_restart = branch || !instr_fetch_running;
+    assign instr_fetch_restart = !instr_fetch_running;
     assign instr_fetch_stall = next_instr_stall;
 
     assign instr_addr = {instr_data_start, 2'b00} + {20'd0, instr_write_offset};
 
     assign instr = instr_valid ? {instr_data[next_pc_offset[2:1] + 2'b01], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset + 2'b01], instr_data[pc_offset]};
     assign pc = {8'h00, instr_data_start, pc_offset, 1'b0};
+    assign next_pc_for_core = {8'h00, next_pc};
 
 endmodule

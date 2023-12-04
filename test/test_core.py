@@ -230,7 +230,7 @@ async def test_jal(dut):
     await send_instr(dut, InstructionJAL(x2, -0x1000).encode())
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x1008
-    assert await get_reg_value(dut, x2) == 0x2008  # Note it will be the using module's job to supply next PC in this case
+    assert await get_reg_value(dut, x2) == 0x200C
 
 @cocotb.test()
 async def test_jalr(dut):
@@ -250,7 +250,7 @@ async def test_jalr(dut):
     await send_instr(dut, InstructionJALR(x2, x1, -0x120).encode())
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x100
-    assert await get_reg_value(dut, x2) == 0x220  # Note it will be the using module's job to supply next PC in this case
+    assert await get_reg_value(dut, x2) == 0x224
 
 @cocotb.test()
 async def test_branch(dut):
