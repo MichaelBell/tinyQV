@@ -132,7 +132,7 @@ module qspi_flash_controller #(parameter DATA_WIDTH_BYTES=2, parameter ADDR_BITS
 
     assign spi_data_out = fsm_state == FSM_CMD  ? {3'b000, !(nibbles_remaining == 4 || nibbles_remaining == 2)} :
                           fsm_state == FSM_ADDR ? addr[ADDR_BITS-1:ADDR_BITS-4] :
-                                                  4'b1111;
+                                                  4'b0001;
 /* verilator lint_on WIDTHTRUNC */
 
 endmodule

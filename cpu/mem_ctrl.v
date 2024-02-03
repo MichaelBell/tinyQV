@@ -31,12 +31,15 @@ module tinyqv_mem_ctrl (
     output           spi_select_flash,
     output           spi_select_ram_a,
     output           spi_select_ram_b,
-    output reg       spi_clk_out,
+    output reg       spi_clk_out
 );
 
     wire flash_data_sel = 1'b0; //data_addr[27:24] == 4'h0 && data_read_n != 2'b11;
     wire [23:0] flash_addr_in = flash_data_sel ? data_addr[23:0] : {instr_addr, 1'b0};
-    
+    wire flash_busy;
+    wire [15:0] flash_data_out;
+    wire flash_data_ready;
+
     reg flash_stop_read;
     always @(posedge clk) begin
         if (!rstn) flash_stop_read <= 1'b0;
@@ -83,7 +86,7 @@ module tinyqv_mem_ctrl (
     assign data_ready = 1'b0;
     assign data_from_read = 32'd0;
 
-    assign spi_select_ram_a = 1'b0;
-    assign spi_select_ram_b = 1'b0;
+    assign spi_select_ram_a = 1'b1;
+    assign spi_select_ram_b = 1'b1;
 
 endmodule
