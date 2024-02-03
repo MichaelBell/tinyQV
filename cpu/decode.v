@@ -1,9 +1,9 @@
-/* Decoder for tiny45.
+/* Decoder for TinyQV.
 
     Note parts of this are from the excellent FemtoRV by Bruno Levy et al.
 */
 
-module tiny45_decoder #(parameter REG_ADDR_BITS=4) (
+module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     input [31:0] instr,
 
     output reg [31:0] imm,
@@ -21,7 +21,7 @@ module tiny45_decoder #(parameter REG_ADDR_BITS=4) (
 
     output [2:1] instr_len,
 
-    output reg [3:0] alu_op,  // See tiny45_alu for format
+    output reg [3:0] alu_op,  // See tinyqv_alu for format
 
     output [2:0] mem_op,      // Bit 0 of mem_op indicates branch condition is reversed
 

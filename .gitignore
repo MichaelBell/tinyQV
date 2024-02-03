@@ -2,7 +2,7 @@
 *.asc
 *.bin
 *.log
-tiny45.json
+tinyqv.json
 
 test/__pycache__/
 test/*.vcd

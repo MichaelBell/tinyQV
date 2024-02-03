@@ -1,9 +1,9 @@
-/* Tiny45: A RISC-V core designed to use minimal area.
+/* TinyQV: A RISC-V core designed to use minimal area.
   
    This core module takes decoded instructions and produces output data
  */
 
-module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
+module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -23,7 +23,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 /*verilator lint_on UNUSEDSIGNAL*/
     input is_stall,
 
-    input [3:0] alu_op,  // See tiny45_alu for format
+    input [3:0] alu_op,  // See tinyqv_alu for format
     input [2:0] mem_op,
 
     input [REG_ADDR_BITS-1:0] rs1,
@@ -53,7 +53,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg [31:0] tmp_data;
 
-    tiny45_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
+    tinyqv_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
         i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
 
 
@@ -77,7 +77,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire cmp_in = (counter == 0) ? 1'b1 : cmp;
     wire cy_out, cmp_out;
 
-    tiny45_alu i_alu(alu_op_in, alu_a_in, alu_b_in, cy_in, cmp_in, alu_out, cy_out, cmp_out);
+    tinyqv_alu i_alu(alu_op_in, alu_a_in, alu_b_in, cy_in, cmp_in, alu_out, cy_out, cmp_out);
 
     always @(posedge clk) begin
         cy <= cy_out;
@@ -97,7 +97,7 @@ module tiny45_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     wire [3:0] shift_out;
-    tiny45_shifter i_shift(alu_op[3:2], counter, tmp_data, shift_amt, shift_out);
+    tinyqv_shifter i_shift(alu_op[3:2], counter, tmp_data, shift_amt, shift_out);
 
 
     ///////// Writeback /////////

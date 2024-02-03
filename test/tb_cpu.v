@@ -33,7 +33,7 @@ initial begin
 end
 `endif
 
-    tiny45_cpu cpu(
+    tinyqv_cpu cpu(
         clk,
         rstn,
 

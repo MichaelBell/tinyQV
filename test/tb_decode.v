@@ -24,7 +24,7 @@ module tb_decode (
 
     output [2:0] instr_len,
 
-    output [3:0] alu_op,  // See tiny45_alu for format
+    output [3:0] alu_op,  // See tinyqv_alu for format
     output [2:0] mem_op,
 
     output [3:0] rs1,
@@ -40,7 +40,7 @@ initial begin
 end
 `endif
 
-    tiny45_decoder decoder(instr, 
+    tinyqv_decoder decoder(instr, 
         imm,
 
         is_load,
@@ -56,7 +56,7 @@ end
 
         instr_len[2:1],
 
-        alu_op,  // See tiny45_alu for format
+        alu_op,  // See tinyqv_alu for format
         mem_op,
 
         rs1,

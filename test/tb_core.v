@@ -41,14 +41,14 @@ end
     wire is_system;
 
     wire [2:1] instr_len;
-    wire [3:0] alu_op;  // See tiny45_alu for format
+    wire [3:0] alu_op;  // See tinyqv_alu for format
     wire [2:0] mem_op;
 
     wire [3:0] rs1;
     wire [3:0] rs2;
     wire [3:0] rd;
 
-    tiny45_decoder decoder(instr, 
+    tinyqv_decoder decoder(instr, 
         imm,
 
         is_load,
@@ -63,7 +63,7 @@ end
         is_system,
 
         instr_len,
-        alu_op,  // See tiny45_alu for format
+        alu_op,  // See tinyqv_alu for format
         mem_op,
 
         rs1,
@@ -91,7 +91,7 @@ end
 
     wire [31:0] next_pc = pc + {29'd0, instr_len, 1'b0};
 
-    tiny45_core core(clk,
+    tinyqv_core core(clk,
         rstn,
         
         imm[counter+:4],

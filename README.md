@@ -1,4 +1,4 @@
-# Tiny45: A Risc-V SoC for Tiny Tapeout <!-- omit in toc -->
+# Tiny-QV: A Risc-V SoC for Tiny Tapeout <!-- omit in toc -->
 
 Idea is to implement a 4 bit at a time RV32 processor, similar to [nanoV](https://github.com/MichaelBell/nanoV) but optimized for QSPI RAM and Flash instead of SPI FRAM.
 
@@ -16,9 +16,9 @@ Peripherals so it can do basic microcontroller things, currently thinking 1 UART
 
 ### QPSI PMOD
 
-Plan is a PMOD for the bidis with W25Q128JVSIQ (16MB flash) and 2xAPS6404L-3SQR-SN (8MB RAM).  Need to redesign this board in KiCad and work out how to get it assembled.
+Using [this PMOD](https://github.com/mole99/qspi-pmod) for the bidis with W25Q128JVSIQ (16MB flash) and 2xAPS6404L-3SQR-SN (8MB RAM).
 
-Agreed this pinout for the PMOD
+The pinout for the PMOD is
 ```
 	uio[0] - CS0 (Flash)
 	uio[1] - SD0/MOSI
@@ -32,9 +32,9 @@ Agreed this pinout for the PMOD
 
 ### Performance
 
-Core should run at up to 66MHz, QSPI at 33MHz
+Core should be timed to run at up to 100MHz, QSPI at 50MHz
 
-Should be able to execute 1 cycle 16-bit instructions at one instruction every 8 66MHz cycles (8.25MHz), shifts and 32-bit instructions (other than branches and stores) every 16 66MHz cycles (4.125MHz)
+Should be able to execute 1 cycle 16-bit instructions at one instruction every 8 cycles (up to ~12MHz), shifts and 32-bit instructions (other than branches and stores) every 16 cycles (up to ~6MHz)
 
 ## Risc-V details
 
@@ -79,11 +79,11 @@ In continuous read mode a QSPI read can be initiated with a 12 cycle preamble (6
 
 Use the PSRAM in QPI mode.  Enter quad mode on each RAM immediately after reset (this should be safely ignored if they are already in quad mode).
 Writes have no delay cycles so 8 cycles + data (16 cycles total for a 32-bit write).
-Use Fast Read (0Bh) for reads, 66MHz limit is no problem here.  Gives 12 cycles preamble for read, 20 cycles total for a 32-bit read.
+Use Fast Read (0Bh) for reads, (note 66MHz limit).  Gives 12 cycles preamble for read, 20 cycles total for a 32-bit read.
 
 My thought is that code execution is only supported from the flash, this potentially simplifies things a little and also removes the need for handling the PSRAM refresh every 8us in the case of long instruction sequences with no loads/stores/branches - all reads and writes to the PSRAM will be short.
 
-Overall this means that stores to RAM are likely to cost at least 20 33MHz cycles = 5 minimum cost instructions, and loads 24 = 6 minimum cost instructions.  So similar proportional cost as nanoV, but the baseline is 8x faster.
+Overall this means that stores to RAM are likely to cost at least 20 SPI clocks = 5 minimum cost instructions, and loads 24 = 6 minimum cost instructions.  So similar proportional cost as nanoV, but the baseline is 8x faster.
 
 ## Address map
 

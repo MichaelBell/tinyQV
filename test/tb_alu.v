@@ -35,7 +35,7 @@ end
     wire [3:0] op_res;
     wire cmp_in = (counter == 0) ? 1'b1 : cmp;
     wire cy_out, cmp_out;
-    tiny45_alu alu(op, a[counter+:4], b[counter+:4], cy_in, cmp_in, op_res, cy_out, cmp_out);
+    tinyqv_alu alu(op, a[counter+:4], b[counter+:4], cy_in, cmp_in, op_res, cy_out, cmp_out);
 
     always @(posedge clk) begin
         d[counter+:4] <= op_res;

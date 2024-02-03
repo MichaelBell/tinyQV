@@ -1,4 +1,4 @@
-/* ALU for tiny45.
+/* ALU for TinyQV.
 
     RISC-V ALU instructions:
       0000 ADD:  D = A + B
@@ -15,7 +15,7 @@
       1101 SRA: D = A >> B (signed)
 */
 
-module tiny45_alu (
+module tinyqv_alu (
     input [3:0] op,
     input [3:0] a,
     input [3:0] b,
@@ -51,7 +51,7 @@ module tiny45_alu (
 
 endmodule
 
-module tiny45_shifter (
+module tinyqv_shifter (
     input [3:2] op,
     input [2:0] counter,
     input [31:0] a,

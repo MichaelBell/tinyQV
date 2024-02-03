@@ -1,9 +1,9 @@
-/* Tiny45: A RISC-V core designed to use minimal area.
+/* TinyQV: A RISC-V core designed to use minimal area.
   
-   This core module takes decoded instructions and produces output data
+   This CPU module interfaces with memory, the instruction decoder and the core.
  */
 
-module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
+module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -50,7 +50,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [3:0] rs2_de;
     wire [3:0] rd_de;
 
-    tiny45_decoder i_decoder(
+    tinyqv_decoder i_decoder(
         instr, 
         imm_de,
 
@@ -66,7 +66,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         is_system_de,
 
         instr_len_de,
-        alu_op_de,  // See tiny45_alu for format
+        alu_op_de,  // See tinyqv_alu for format
         mem_op_de,
 
         rs1_de,
@@ -178,7 +178,7 @@ module tiny45_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    tiny45_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
+    tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
         rstn,
         

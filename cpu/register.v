@@ -1,4 +1,4 @@
-/* Register file for tiny45.
+/* Register file for TinyQV.
 
     Targetting RV32E, with hardcoded x0, gp and tp so 13 registers.
 
@@ -7,7 +7,7 @@
     The read bit address is one ahead of write bit address, and both increment every clock.
  */
 
-module tiny45_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
+module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
 /*verilator lint_off UNUSEDSIGNAL*/
     input rstn,

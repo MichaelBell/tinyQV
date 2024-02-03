@@ -1,6 +1,6 @@
-/* Counter register for tiny45 */
+/* Counter register for TinyQV */
 
-module tiny45_counter (
+module tinyqv_counter (
     input clk,
     input rstn,
 
