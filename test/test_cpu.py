@@ -9,6 +9,7 @@ from riscvmodel.regnames import x0, x1, x2, x3, x5
 
 async def send_instr(dut, instr, fast=False):
     await ClockCycles(dut.clk, 1)
+    dut.instr_fetch_started.value = 0
     dut.instr_ready.value = 0
     if not fast:
         await ClockCycles(dut.clk, 7)
