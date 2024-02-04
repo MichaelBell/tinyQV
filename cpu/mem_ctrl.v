@@ -28,46 +28,55 @@ module tinyqv_mem_ctrl (
     input      [3:0] spi_data_in,
     output     [3:0] spi_data_out,
     output reg [3:0] spi_data_oe,
-    output           spi_select_flash,
-    output           spi_select_ram_a,
-    output           spi_select_ram_b,
+    output           spi_flash_select,
+    output           spi_ram_a_select,
+    output           spi_ram_b_select,
     output reg       spi_clk_out
 );
 
-    wire flash_data_sel = 1'b0; //data_addr[27:24] == 4'h0 && data_read_n != 2'b11;
-    wire [23:0] flash_addr_in = flash_data_sel ? data_addr[23:0] : {instr_addr, 1'b0};
-    wire flash_busy;
-    wire [15:0] flash_data_out;
-    wire flash_data_ready;
+    wire [24:0] addr_in = {1'b0, instr_addr, 1'b0};
+    wire qspi_busy;
+    reg [23:0] qspi_data_buf;
+    reg [1:0] qspi_data_byte_idx;
+    wire qspi_data_req;
+    wire qspi_data_ready;
+    wire [7:0] qspi_data_out;
 
-    reg flash_stop_read;
+    reg stop_txn;
     always @(posedge clk) begin
-        if (!rstn) flash_stop_read <= 1'b0;
-        else flash_stop_read <= flash_busy && instr_fetch_restart;
+        if (!rstn) stop_txn <= 1'b0;
+        else stop_txn <= qspi_busy && instr_fetch_restart;
     end
         
-    wire flash_start_read = instr_fetch_restart && !flash_stop_read && !flash_busy;  // TODO
-    wire flash_stall_read = flash_data_sel ? 1'b0 : instr_fetch_stall;
+    wire start_read = instr_fetch_restart && !stop_txn && !qspi_busy;  // TODO
+    wire start_write = 1'b0;
+    wire stall_txn = instr_fetch_stall;
 
 
-    qspi_flash_controller i_flash(
+    qspi_controller i_ctrl(
         clk,
         rstn,
 
         spi_data_in,
         spi_data_out,
         spi_data_oe,
-        spi_select_flash,
         spi_clk_out,
 
-        flash_addr_in,
-        flash_start_read,
-        flash_stall_read,
-        flash_stop_read,
+        spi_flash_select,
+        spi_ram_a_select,
+        spi_ram_b_select,
 
-        flash_data_out,
-        flash_data_ready,
-        flash_busy
+        addr_in,
+        data_to_write[{qspi_data_byte_idx,3'b000} +:8],
+        start_read,
+        start_write,
+        stall_txn,
+        stop_txn,
+
+        qspi_data_out,
+        qspi_data_req,
+        qspi_data_ready,
+        qspi_busy
     );
 
     always @(posedge clk) begin
@@ -75,18 +84,36 @@ module tinyqv_mem_ctrl (
             instr_fetch_started <= 1'b0;
             instr_fetch_stopped <= 1'b0;
         end else begin
-            instr_fetch_started <= flash_start_read;
-            instr_fetch_stopped <= flash_stop_read;
+            instr_fetch_started <= start_read;
+            instr_fetch_stopped <= stop_txn;
         end
     end
 
-    assign instr_data = flash_data_out;
-    assign instr_ready = flash_data_ready;
+    always @(posedge clk) begin
+        if (!rstn || start_read || start_write) begin
+            qspi_data_byte_idx <= 2'b00;
+        end else begin
+            if (qspi_data_ready || qspi_data_req) begin
+                qspi_data_byte_idx <= qspi_data_byte_idx + 1;
+
+                // TODO: Different transaction types/lengths
+                if (qspi_data_byte_idx == 2-1) begin
+                    qspi_data_byte_idx <= 0;
+                end
+            end
+        end
+    end
+
+    always @(posedge clk) begin
+        if (qspi_data_ready && qspi_data_byte_idx != 2'b11) begin
+            qspi_data_buf[{qspi_data_byte_idx,3'b000} +:8] <= qspi_data_out;
+        end
+    end
+
+    assign instr_data = {qspi_data_out, qspi_data_buf[7:0]};
+    assign instr_ready = qspi_data_ready && qspi_data_byte_idx == 2'b01;
 
     assign data_ready = 1'b0;
-    assign data_from_read = 32'd0;
-
-    assign spi_select_ram_a = 1'b1;
-    assign spi_select_ram_b = 1'b1;
+    assign data_from_read = {qspi_data_out, qspi_data_buf};
 
 endmodule
