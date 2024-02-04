@@ -44,7 +44,7 @@ module qspi_controller (
     input        stop_txn,
 
     output [7:0] data_out,
-    output       data_req,
+    output reg   data_req,
     output reg   data_ready,
     output       busy
 );
@@ -71,7 +71,6 @@ module qspi_controller (
 
     assign data_out = data;
     assign busy = fsm_state != FSM_IDLE;
-    assign data_req = (fsm_state == FSM_DATA) && nibbles_remaining == 0;
 
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
 /* verilator lint_off WIDTHTRUNC */
@@ -84,11 +83,13 @@ module qspi_controller (
             data_ready <= 0;
             spi_clk_out <= 1;
             spi_data_oe <= 4'b0000;
-            spi_select_flash <= 0;
-            spi_select_ram_a <= 0;
-            spi_select_ram_b <= 0;
+            spi_flash_select <= 1;
+            spi_ram_a_select <= 1;
+            spi_ram_b_select <= 1;
+            data_req <= 0;
         end else begin
             data_ready <= 0;
+            data_req <= 0;
             if (fsm_state == FSM_IDLE) begin
                 if (start_read || start_write) begin
                     fsm_state <= FSM_CMD;
@@ -96,9 +97,9 @@ module qspi_controller (
                     nibbles_remaining <= 8-1;
                     spi_data_oe <= 4'b0001;
                     spi_clk_out <= 0;
-                    spi_select_flash <= addr_in[24];
-                    spi_select_ram_a <= !addr_in[24] && addr_in[23];
-                    spi_select_ram_b <= !addr_in[24] && !addr_in[23];
+                    spi_flash_select <= addr_in[24];
+                    spi_ram_a_select <= addr_in[24:23] != 2'b10;
+                    spi_ram_b_select <= addr_in[24:23] != 2'b11;
                 end
             end else begin
                 if (fsm_state == FSM_STALLED) begin
@@ -138,6 +139,8 @@ module qspi_controller (
                         end else begin
                             nibbles_remaining <= nibbles_remaining - 1;
                         end
+                    end else begin
+                        data_req <= (fsm_state == FSM_DATA) && nibbles_remaining == 0;
                     end
                 end
             end
@@ -145,7 +148,7 @@ module qspi_controller (
     end
 
     always @(posedge clk) begin
-        if (fsm_state == FSM_IDLE && start_read) begin
+        if (fsm_state == FSM_IDLE && (start_read || start_write)) begin
             addr <= addr_in[23:0];
         end else if (fsm_state == FSM_ADDR && spi_clk_out) begin
             addr <= {addr[ADDR_BITS-5:0], 4'b0000};
@@ -153,12 +156,16 @@ module qspi_controller (
     end
 
     always @(posedge clk) begin
-        if (!spi_clk_out) begin
-            if (is_writing && (nibbles_remaining == 0 || fsm_state == FSM_STALLED)) begin
-                data <= data_in;
-            end else if (fsm_state == FSM_DATA) begin
-                data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
+        if (is_writing) begin
+            if (spi_clk_out) begin
+                if (nibbles_remaining == 0 || fsm_state == FSM_STALLED) begin
+                    data <= data_in;
+                end else if (fsm_state == FSM_DATA) begin
+                    data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
+                end
             end
+        end else if (!spi_clk_out && fsm_state == FSM_DATA) begin
+            data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
         end
     end
 
