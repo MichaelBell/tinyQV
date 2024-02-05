@@ -16,7 +16,7 @@ module tinyqv_mem_ctrl (
     output  [15:0] instr_data,
     output         instr_ready,
 
-    input [27:0] data_addr,
+    input [24:0] data_addr,
     input [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [31:0] data_to_write,
@@ -34,8 +34,6 @@ module tinyqv_mem_ctrl (
     output           spi_ram_b_select
 );
 
-    wire data_in_mem = data_addr[27:25] == 0;
-
     // Combinational
     reg start_instr;
     reg start_read;
@@ -50,7 +48,6 @@ module tinyqv_mem_ctrl (
         stop_txn = 0;
         data_txn_n = data_write_n & data_read_n;
         data_txn_len = {data_txn_n[1], data_txn_n[1] | data_txn_n[0]};  // 0, 1 or 3 for 1, 2 or 4 byte txn
-        if (!data_in_mem) data_txn_n = 2'b11;
 
         if (qspi_busy || qspi_write_done) begin
             // A transaction is running
@@ -70,9 +67,9 @@ module tinyqv_mem_ctrl (
             end
         end else begin
             // No transaction, start one
-            if (data_in_mem && data_read_n != 2'b11)
+            if (data_read_n != 2'b11)
                 start_read = 1;
-            else if (data_in_mem && data_write_n != 2'b11)
+            else if (data_write_n != 2'b11)
                 start_write = 1;
             else if (instr_fetch_restart)
                 start_instr = 1;

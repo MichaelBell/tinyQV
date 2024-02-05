@@ -16,7 +16,7 @@ module tb_mem_ctrl (
     output  [15:0] instr_data,
     output         instr_ready,
 
-    input [27:0] data_addr,
+    input [24:0] data_addr,
     input [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [31:0] data_to_write,

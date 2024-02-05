@@ -212,6 +212,12 @@ async def test_simple_write(dut):
             if j == 9:
                 dut.stop_txn.value = 1
 
+        # Txn doesn't cancel on low clock
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.data_req.value == 0
+
         for i in range(10):
             await ClockCycles(dut.clk, 1, False)
             assert dut.spi_flash_select.value == 1

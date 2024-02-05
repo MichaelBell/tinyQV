@@ -17,6 +17,12 @@
    - if data is not ready the clock can be temporarily stalled with stall_txn,
    - Or set stop_txn high to cancel the write.
 
+    TODO: Round trip latency of the TT mux is a little over 20ns, so will need configurable 
+    delay cycles for reads if we intend to reach faster clock speeds
+
+    TODO: Should use continuous read mode on the flash
+    TODO: Maybe should use QPI command mode on the RAM
+
    */
 module qspi_controller (
     input clk,
