@@ -1,0 +1,233 @@
+import random
+
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import Timer, ClockCycles
+from cocotb.binary import BinaryValue
+
+select = None
+
+async def start_data_read(dut, len_code, read_follows_read):
+    global select
+
+    await ClockCycles(dut.clk, 1, False)
+    assert dut.spi_data_oe.value == 0
+    assert dut.spi_flash_select.value == 1
+    assert dut.spi_ram_a_select.value == 1
+    assert dut.spi_ram_b_select.value == 1
+    assert dut.spi_clk_out.value == 1
+
+    addr = random.randint(0, (1 << 25) - 1)
+    last_select = select
+    if addr >= 0x1800000:
+        select = dut.spi_ram_b_select
+    elif addr >= 0x1000000:
+        select = dut.spi_ram_a_select
+    else:
+        select = dut.spi_flash_select
+
+    dut.data_addr.value = addr
+    dut.data_read_n.value = len_code
+    await ClockCycles(dut.clk, 1, False)
+
+    if read_follows_read and last_select == select and select != dut.spi_flash_select:
+        assert dut.spi_data_oe.value == 0
+        assert dut.spi_flash_select.value == 1
+        assert dut.spi_ram_a_select.value == 1
+        assert dut.spi_ram_b_select.value == 1
+        assert dut.spi_clk_out.value == 1   
+        await ClockCycles(dut.clk, 1, False)     
+
+    assert select.value == 0
+    assert dut.spi_flash_select.value == 0 if dut.spi_flash_select == select else 1
+    assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
+    assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
+    assert dut.spi_clk_out.value == 0
+    assert dut.spi_data_oe.value == 1
+
+    # Command
+    cmd = 0xEB
+    for i in range(8):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_out.value == (1 if cmd & 0x80 else 0)
+        assert dut.spi_data_oe.value == 1
+        cmd <<= 1
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+    # Address
+    for i in range(6):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_out.value == (addr >> (20 - i * 4)) & 0xF
+        assert dut.spi_data_oe.value == 0xF
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+    # Dummy
+    for i in range(2):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_oe.value == 0xF
+        assert dut.spi_data_out.value == 0xF
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+    for i in range(4):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_oe.value == 0
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+async def start_data_write(dut, data, len_code, delay_start):
+    global select
+
+    assert dut.spi_data_oe.value == 0
+    assert dut.spi_flash_select.value == 1
+    assert dut.spi_ram_a_select.value == 1
+    assert dut.spi_ram_b_select.value == 1
+    assert dut.spi_clk_out.value == 1
+
+    addr = random.randint(1 << 24, (1 << 25) - 1)
+    if addr >= 0x1800000:
+        select = dut.spi_ram_b_select
+    else:
+        select = dut.spi_ram_a_select
+
+    dut.data_addr.value = addr
+    dut.data_to_write.value = data
+    dut.data_write_n.value = len_code
+    if delay_start:
+        await ClockCycles(dut.clk, 1, False)
+        assert dut.spi_data_oe.value == 0
+        assert dut.spi_flash_select.value == 1
+        assert dut.spi_ram_a_select.value == 1
+        assert dut.spi_ram_b_select.value == 1
+        assert dut.spi_clk_out.value == 1
+    await ClockCycles(dut.clk, 1, False)
+
+    assert select.value == 0
+    assert dut.spi_flash_select.value == 1
+    assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
+    assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
+    assert dut.spi_clk_out.value == 0
+    assert dut.spi_data_oe.value == 1
+
+    # Command
+    cmd = 0x38
+    for i in range(8):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_out.value == (1 if cmd & 0x80 else 0)
+        assert dut.spi_data_oe.value == 1
+        cmd <<= 1
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+    # Address
+    for i in range(6):
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 1
+        assert dut.spi_data_out.value == (addr >> (20 - i * 4)) & 0xF
+        assert dut.spi_data_oe.value == 0xF
+        await ClockCycles(dut.clk, 1, False)
+        assert select.value == 0
+        assert dut.spi_clk_out.value == 0
+
+async def reset(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 1
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 3, False)
+    dut.rstn.value = 1
+    dut.spi_data_in.value = 0
+    dut.instr_fetch_restart.value = 0
+    dut.instr_fetch_stall.value = 0
+    dut.data_write_n.value = 3
+    dut.data_read_n.value = 3
+    await ClockCycles(dut.clk, 1, False)
+
+nibble_shift_order = [4, 0, 12, 8, 20, 16, 28, 24]
+
+@cocotb.test()
+async def test_data_read(dut):
+    await reset(dut)
+
+    for k in range(100):
+        len_code = random.randint(0, 2)
+        read_len = [1, 2, 4][len_code]
+        
+        await start_data_read(dut, len_code, k != 0)
+
+        # Read
+        data = random.randint(0, (1 << (8 * read_len)) - 1)
+        for i in range(2 * read_len):
+            dut.spi_data_in.value = (data >> (nibble_shift_order[i])) & 0xF
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 1
+            assert dut.spi_data_oe.value == 0
+            assert dut.data_ready.value == 0
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 0
+            assert dut.data_ready.value == (1 if i == 2 * read_len - 1 else 0)
+
+        # Need to only read the valid bits
+        bits_out = dut.data_from_read.value.binstr
+        bits_out = bits_out[32 - 8 * read_len:]
+        format_str = "{:" + "0{}b".format(8 * read_len) + "}"
+        assert bits_out == format_str.format(data)
+
+@cocotb.test()
+async def test_data_write(dut):
+    await reset(dut)
+
+    delay = False
+    for k in range(50):
+        len_code = random.randint(0, 2)
+        read_len = [1, 2, 4][len_code]        
+        data = random.randint(0, (1 << (8 * read_len)) - 1)
+        await start_data_write(dut, data, len_code, delay)
+
+        # Write
+        for i in range(2 * read_len):
+            assert dut.spi_data_oe.value == 0xF
+            assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 1
+            assert dut.spi_data_oe.value == 0xF
+            assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
+            assert dut.data_ready.value == 0
+            await ClockCycles(dut.clk, 1, False)
+            if i == 2 * read_len - 1:
+                assert select.value == 1
+                assert dut.spi_clk_out.value == 1
+                assert dut.data_ready.value == 1
+            else:
+                assert select.value == 0
+                assert dut.spi_clk_out.value == 0
+                assert dut.data_ready.value == 0
+
+        if random.randint(0, 1) == 1:
+            await ClockCycles(dut.clk, 1, False)
+            delay = False
+        else:
+            delay = True
+

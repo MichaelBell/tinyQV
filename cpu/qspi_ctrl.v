@@ -1,4 +1,5 @@
-/* Copyright 2023 (c) Michael Bell
+/* Copyright 2023-2024 (c) Michael Bell
+   SPDX-License-Identifier: Apache-2.0
 
    A QSPI controller for the QSPI PMOD:
      https://github.com/mole99/qspi-pmod
@@ -72,11 +73,21 @@ module qspi_controller (
     assign data_out = data;
     assign busy = fsm_state != FSM_IDLE;
 
+    wire stop_txn_next = (stop_txn && is_writing && !spi_clk_out);
+    reg stop_txn_reg;
+    always @(posedge clk) begin
+        if (!rstn) 
+            stop_txn_reg <= 0;
+        else
+            stop_txn_reg <= stop_txn_next;
+    end
+    wire stop_txn_now = stop_txn_reg || (stop_txn && !(is_writing && !spi_clk_out));
+
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
 /* verilator lint_off WIDTHTRUNC */
 
     always @(posedge clk) begin
-        if (!rstn || stop_txn) begin
+        if (!rstn || stop_txn_now) begin
             fsm_state <= FSM_IDLE;
             is_writing <= 0;
             nibbles_remaining <= 0;
@@ -91,7 +102,7 @@ module qspi_controller (
             data_ready <= 0;
             data_req <= 0;
             if (fsm_state == FSM_IDLE) begin
-                if (start_read || start_write) begin
+                if ((start_read || start_write) && !ram_a_block && !ram_b_block) begin
                     fsm_state <= FSM_CMD;
                     is_writing <= !start_read && addr_in[24];  // Only writes to RAM supported.
                     nibbles_remaining <= 8-1;
@@ -147,6 +158,8 @@ module qspi_controller (
         end
     end
 
+/* verilator lint_on WIDTHTRUNC */
+
     always @(posedge clk) begin
         if (fsm_state == FSM_IDLE && (start_read || start_write)) begin
             addr <= addr_in[23:0];
@@ -173,6 +186,21 @@ module qspi_controller (
                           fsm_state == FSM_ADDR ? addr[ADDR_BITS-1:ADDR_BITS-4] :
                           fsm_state == FSM_DATA ? data[DATA_WIDTH_BITS-1:DATA_WIDTH_BITS-4] :
                                                   4'b1111;
-/* verilator lint_on WIDTHTRUNC */
+
+    // Allow 2 cycles before reselecting the same RAM
+    reg last_ram_a_sel;
+    reg last_ram_b_sel;
+    always @(posedge clk) begin
+        if (!rstn) begin
+            last_ram_a_sel <= 1;
+            last_ram_b_sel <= 1;
+        end else begin
+            last_ram_a_sel <= spi_ram_a_select;
+            last_ram_b_sel <= spi_ram_b_select;
+        end
+    end
+
+    wire ram_a_block = (last_ram_a_sel == 0) && addr_in[24:23] == 2'b10;
+    wire ram_b_block = (last_ram_b_sel == 0) && addr_in[24:23] == 2'b11;
 
 endmodule
