@@ -1,0 +1,67 @@
+/* Copyright 2023-2024 (c) Michael Bell
+   SPDX-License-Identifier: Apache-2.0
+
+   A general SPI controller, with optional DC line for
+   simple control of SPI LCDs.
+   */
+
+module spi_ctrl (
+    input clk,
+    input rstn,
+
+    // External SPI interface
+    input      spi_miso,
+    output reg spi_select,
+    output reg spi_clk_out,
+    output     spi_mosi,
+    output reg spi_dc,  // Data/command indication
+
+    // Internal interface for reading/writing data
+    input        dc_in,    // Written back to spi_dc when byte transmission begins
+    input        end_txn,  // Whether to release CS at the end of this byte
+    input  [7:0] data_in,  // Data to transmit
+    input        start,    // Signal to start a transfer, set high for 1 clock when busy is low
+    output [7:0] data_out, // Data read, valid when busy is low
+    output reg   busy      // Whether a transfer is in progress
+);
+
+    reg [7:0] data;
+    reg [2:0] bits_remaining;
+    reg       end_txn_reg;
+
+    always @(posedge clk) begin
+        if (!rstn) begin
+            busy <= 0;
+            spi_select <= 1;
+            spi_clk_out <= 1;
+        end else begin
+            if (!busy) begin
+                if (start) begin
+                    busy <= 1;
+                    data <= data_in;
+                    spi_dc <= dc_in;
+                    end_txn_reg <= end_txn;
+                    bits_remaining <= 7;
+                    spi_select <= 0;
+                    spi_clk_out <= 0;
+                end
+            end else begin
+                spi_clk_out <= !spi_clk_out;
+                if (spi_clk_out) begin
+                    data <= {data[6:0], spi_miso};
+                    if (bits_remaining == 0) begin
+                        busy <= 0;
+                        spi_select <= end_txn_reg;
+                        spi_clk_out <= 1;
+                    end else begin
+                        bits_remaining <= bits_remaining - 1;
+                    end
+                end
+            end
+        end
+    end
+
+    assign spi_mosi = data[7];
+    assign data_out = data;
+
+endmodule
