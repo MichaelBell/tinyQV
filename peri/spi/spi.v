@@ -41,6 +41,7 @@ module spi_ctrl (
             spi_select <= 1;
             spi_clk_out <= 1;
             clock_count <= 0;
+            bits_remaining <= 0;
         end else begin
             if (!busy) begin
                 if (start) begin
@@ -48,7 +49,7 @@ module spi_ctrl (
                     data <= data_in;
                     spi_dc <= dc_in;
                     end_txn_reg <= end_txn;
-                    bits_remaining <= 7;
+                    bits_remaining <= 3'd7;
                     spi_select <= 0;
                     spi_clk_out <= 0;
                 end
@@ -64,7 +65,7 @@ module spi_ctrl (
                             spi_select <= end_txn_reg;
                             spi_clk_out <= 1;
                         end else begin
-                            bits_remaining <= bits_remaining - 1;
+                            bits_remaining <= bits_remaining - 3'b001;
                         end
                     end
                 end
