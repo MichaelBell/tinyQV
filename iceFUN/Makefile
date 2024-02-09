@@ -23,18 +23,18 @@ iceFUN:
 	nextpnr-ice40 -r --hx8k --json $(PROJ).json --package cb132 --asc $(PROJ).asc --opt-timing --pcf iceFUN.pcf > nextpnr.log 2>& 1
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*clk" nextpnr.log | tail -1
+	@grep "Max frequency.*clk" nextpnr.log | tail -2
 	@echo
 
 	# Convert to bitstream using IcePack
 	icepack $(PROJ).asc $(PROJ).bin
 
 stats:
-	@grep Warn yosys.log || true
+	@grep Warn yosys.log | grep -v tri-state || true
 	@grep Error yosys.log || true
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*clk12MHz" nextpnr.log | tail -1
+	@grep "Max frequency.*clk" nextpnr.log | tail -2
 	@echo "| Item | Count |"
 	@echo "| ---- | ----- |"
 	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'
