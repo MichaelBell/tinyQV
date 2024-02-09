@@ -1,0 +1,30 @@
+name: build
+# either manually started, or on a schedule
+on: [ push, workflow_dispatch ]
+jobs:
+  build:
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v4
+      with:
+          submodules: recursive
+
+    # install oss fpga tools
+    - name: install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v3
+      with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+    - run: | 
+        yosys --version
+        nextpnr-ice40 --version
+
+    - name: build
+      run: |
+        cd iceFUN && make
+
+    - name: stats
+      run: |
+        cd iceFUN && make stats >> $GITHUB_STEP_SUMMARY

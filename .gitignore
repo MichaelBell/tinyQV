@@ -6,7 +6,7 @@ tinyqv.json
 
 test/__pycache__/
 test/*.vcd
-test/results.xml
+test/*results.xml
 stats.md
 test/sim_build/
 

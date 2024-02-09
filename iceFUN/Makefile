@@ -29,6 +29,19 @@ iceFUN:
 	# Convert to bitstream using IcePack
 	icepack $(PROJ).asc $(PROJ).bin
 
+stats:
+	@grep Warn yosys.log || true
+	@grep Error yosys.log || true
+	@grep Warn nextpnr.log || true
+	@grep Error nextpnr.log || true
+	@grep "Max frequency.*clk12MHz" nextpnr.log | tail -1
+	@echo "| Item | Count |"
+	@echo "| ---- | ----- |"
+	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'
+	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("| SB_DFF* | %d |\n", sum);}'
+	@grep "     SB_LUT" yosys.log | awk '{printf("| %s | %s |\n", $$1, $$2);}'
+	@grep "     ICESTORM_LC" nextpnr.log | awk '{gsub(/\//, "", $$3);printf("| ICE40 LCs | %s |\n", $$3);}'
+
 burn:
 	iceFUNprog $(PROJ).bin
 

@@ -1,0 +1,31 @@
+name: test
+# either manually started, or on a schedule
+on: [ push, workflow_dispatch ]
+jobs:
+  test:
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v4
+      with:
+          submodules: recursive
+
+    # install oss fpga tools
+    - name: install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v3
+      with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+    - run: | 
+        yosys --version
+        iverilog -V
+        pip3 install riscv-model
+        cocotb-config --libpython
+        cocotb-config --python-bin
+
+    - name: run tests
+      run: |
+        make
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure *results.xml

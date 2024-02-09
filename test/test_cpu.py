@@ -49,6 +49,7 @@ async def expect_branch(dut, addr):
         await ClockCycles(dut.clk, 1)
         if dut.instr_fetch_restart.value == 1:
             assert dut.instr_addr.value == addr >> 1
+            dut.instr_fetch_started.value = 1
             return
 
     assert False
