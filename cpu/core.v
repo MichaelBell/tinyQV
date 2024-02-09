@@ -69,7 +69,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg cy;
     reg cmp;
-    wire [3:0] alu_op_in = (is_branch && cycle == 1) ? 4'b0000 : alu_op;
+    wire [3:0] alu_op_in = (is_branch && cycle == 1) ? 0 : alu_op;
     wire [3:0] alu_a_in = (is_auipc || is_jal || (is_branch && cycle == 1)) ? pc : data_rs1;
     wire [3:0] alu_b_in = (is_alu_reg || (is_branch && cycle == 0)) ? data_rs2 : imm;
     wire [3:0] alu_out;
