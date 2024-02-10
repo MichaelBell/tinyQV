@@ -143,6 +143,17 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    reg stall_core;
+    always @(*) begin
+        stall_core = 0;
+        if (!instr_valid) 
+            stall_core = 1;
+
+        // Wait for writes to complete before starting another load or store
+        if ((is_store || is_load) && (data_write_n != 2'b11)) 
+            stall_core = 1;
+    end
+
     wire [3:0] data_out_slice;
     reg data_ready_latch;
     reg data_ready_core;
@@ -168,20 +179,37 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     always @(posedge clk) begin
-        if (address_ready) begin
+        if (!rstn) begin
+            // Only need to reset the pins that determine how
+            // the address is routed
+            data_addr[27:24] <= 4'b000;
+        end else if (address_ready) begin
             data_addr <= addr_out;
         end
     end
 
     always @(posedge clk) begin
-        if (is_store) begin
+        if (is_store && !stall_core) begin
             data_out[counter+:4] <= data_out_slice;
         end
     end
 
     always @(posedge clk) begin
-        data_write_n <= (is_store && address_ready) ? mem_op[1:0] : 2'b11; 
-        data_read_n  <= (is_load && address_ready)  ? mem_op[1:0] : 2'b11;
+        if (!rstn)
+            data_write_n <= 2'b11;
+        else if (is_store && address_ready)
+            data_write_n <= mem_op[1:0]; 
+        else if (data_ready)
+            data_write_n <= 2'b11;
+    end
+
+    always @(posedge clk) begin
+        if (is_load && !(data_ready || data_ready_latch)) begin
+            if (address_ready)
+                data_read_n <= mem_op[1:0]; 
+        end else begin
+            data_read_n <= 2'b11;
+        end
     end
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
@@ -200,7 +228,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         is_jalr && instr_valid,
         is_jal && instr_valid,
         is_system && instr_valid,
-        !instr_valid,
+        stall_core,
 
         alu_op,
         mem_op,

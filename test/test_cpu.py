@@ -36,7 +36,15 @@ async def read_reg(dut, reg):
         if dut.data_write_n.value != 0b11:
             assert dut.data_write_n.value == 0b10
             assert dut.data_addr.value == offset
-            return dut.data_out.value
+            val = dut.data_out.value
+            await ClockCycles(dut.clk, random.randint(1, 16))
+            dut.data_ready.value = 1
+            assert dut.data_out.value == val
+            await ClockCycles(dut.clk, 1)
+            dut.data_ready.value = 0
+            await Timer(1, "ns")
+            assert dut.data_write_n.value == 0b11
+            return val
 
     assert False
 
@@ -73,6 +81,7 @@ async def load_reg(dut, reg, value):
             dut.data_ready.value = 1
             await ClockCycles(dut.clk, 1)
             dut.data_ready.value = 0
+            await Timer(1, "ns")
             assert dut.data_read_n.value == 0b11
             break
     else:
