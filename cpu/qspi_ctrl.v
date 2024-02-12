@@ -120,14 +120,16 @@ module qspi_controller (
                 end
             end else begin
                 if (fsm_state == FSM_STALLED) begin
-                    data_ready <= !is_writing;
-                    if (!stall_txn) fsm_state <= FSM_DATA;
+                    if (!stall_txn) begin
+                        data_ready <= !is_writing;
+                        fsm_state <= FSM_DATA;
+                    end
                 end else begin
                     spi_clk_out <= !spi_clk_out;
                     if (spi_clk_out) begin
                         if (nibbles_remaining == 0) begin
                             if (fsm_state == FSM_DATA) begin
-                                data_ready <= !is_writing;
+                                data_ready <= !is_writing && !stall_txn;
                                 nibbles_remaining <= (DATA_WIDTH_BITS >> 2)-1;
                                 if (stall_txn) fsm_state <= FSM_STALLED;
                             end else begin

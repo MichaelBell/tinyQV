@@ -33,6 +33,7 @@ async def test_load_store(dut):
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000
+        await ClockCycles(dut.clk, 8)
         dut.load_data_ready.value = 1
         dut.data_in.value = val
         await ClockCycles(dut.clk, 8)
@@ -90,7 +91,7 @@ async def set_reg_value(dut, reg, val):
     assert dut.addr_out.value.signed_integer == offset + 0x1000
     dut.load_data_ready.value = 1
     dut.data_in.value = val
-    await ClockCycles(dut.clk, 8)
+    await ClockCycles(dut.clk, 16)
     assert dut.instr_complete.value == 1
     dut.load_data_ready.value = 0
     dut.data_in.value.assign("X")
@@ -123,7 +124,7 @@ async def test_load(dut):
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000
-        for cycle in range(random.randint(0, 20)):
+        for cycle in range(random.randint(1, 20)):
             await ClockCycles(dut.clk, 8)
             assert dut.instr_complete.value == 0
         dut.load_data_ready.value = 1
@@ -251,6 +252,12 @@ async def test_jalr(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x100
     assert await get_reg_value(dut, x2) == 0x224
+    dut.pc.value = 0x224
+    await send_instr(dut, InstructionADDI(x1, x0, 0x100).encode())
+    await send_instr(dut, InstructionJALR(x2, x1, 0x20).encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x120
+    assert await get_reg_value(dut, x2) == 0x228
 
 @cocotb.test()
 async def test_branch(dut):

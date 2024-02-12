@@ -101,7 +101,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     wire [27:0] addr_out;
     wire address_ready;
-    wire instr_complete;
+    wire instr_complete_core;
     wire branch;
 
     reg [4:2] counter_hi;
@@ -121,7 +121,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_jal <= 0;
             is_system <= 0;
             instr_len <= 2'b10;
-        end else if (instr_complete) begin
+        end else if (instr_complete_core) begin
             imm <= imm_de;
             is_load <= is_load_de;
             is_alu_imm <= is_alu_imm_de;
@@ -141,17 +141,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             rd <= rd_de;
             instr_valid <= ({1'b0,instr_len_de} <= instr_avail_len) && !branch;
         end
-    end
-
-    reg stall_core;
-    always @(*) begin
-        stall_core = 0;
-        if (!instr_valid) 
-            stall_core = 1;
-
-        // Wait for writes to complete before starting another load or store
-        if ((is_store || is_load) && (data_write_n != 2'b11)) 
-            stall_core = 1;
     end
 
     wire [3:0] data_out_slice;
@@ -188,8 +177,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    wire no_write_in_progress = data_write_n == 2'b11;
+
     always @(posedge clk) begin
-        if (is_store && !stall_core) begin
+        if (is_store && no_write_in_progress) begin
             data_out[counter+:4] <= data_out_slice;
         end
     end
@@ -203,14 +194,23 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             data_write_n <= 2'b11;
     end
 
+    reg load_started;
     always @(posedge clk) begin
-        if (is_load && !(data_ready || data_ready_latch)) begin
-            if (address_ready)
+        if (is_load) begin
+            if (address_ready) begin
                 data_read_n <= mem_op[1:0]; 
+                load_started <= 1;
+            end 
+            if (data_ready && load_started) begin
+                data_read_n <= 2'b11;
+            end 
         end else begin
             data_read_n <= 2'b11;
+            load_started <= 0;
         end
     end
+
+    wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
@@ -218,10 +218,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         
         imm[counter+:4],
 
-        is_load && instr_valid,
+        is_load && instr_valid && no_write_in_progress,
         is_alu_imm && instr_valid,
         is_auipc && instr_valid,
-        is_store && instr_valid,
+        is_store && instr_valid && no_write_in_progress,
         is_alu_reg && instr_valid,
         is_lui && instr_valid,
         is_branch && instr_valid,
@@ -246,7 +246,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         data_out_slice,
         addr_out,
         address_ready,
-        instr_complete,
+        instr_complete_core,
         branch
         );
 
@@ -261,9 +261,11 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg instr_fetch_running;
 
+    wire instr_complete = instr_complete_core && !stall_core;
+
     wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
     wire [23:0] next_pc = {instr_data_start, 3'b000} + {20'd0, next_pc_offset, 1'b0};
-    wire pc_wrap = next_pc_offset[3] && instr_complete && instr_valid;
+    wire pc_wrap = next_pc_offset[3] && instr_complete;
     wire [3:1] instr_avail_len = instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
 
     wire [3:1] next_instr_write_offset = instr_write_offset + (instr_ready ? 3'b001 : 3'b000) - (pc_wrap ? 3'b100 : 3'b000);
@@ -294,7 +296,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
                 instr_write_offset <= next_instr_write_offset;
 
-                if (instr_complete && instr_valid) begin
+                if (instr_complete) begin
                     pc_offset <= next_pc_offset[2:1];
                     instr_data_start <= next_pc[23:3];
                 end

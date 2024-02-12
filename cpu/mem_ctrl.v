@@ -91,7 +91,7 @@ module tinyqv_mem_ctrl (
     wire [1:0] txn_len = is_instr ? 2'b01 : data_txn_len;
     wire [24:0] addr_in = is_instr ? {1'b0, instr_addr, 1'b0} : data_addr[24:0];
     wire qspi_busy;
-    reg [23:0] qspi_data_buf;
+    reg [31:0] qspi_data_buf;
     reg [1:0] qspi_data_byte_idx;
     wire qspi_data_req;
     wire qspi_data_ready;
@@ -152,7 +152,7 @@ module tinyqv_mem_ctrl (
     end
 
     always @(posedge clk) begin
-        if (qspi_data_ready && qspi_data_byte_idx != 2'b11) begin
+        if (qspi_data_ready) begin
             qspi_data_buf[{qspi_data_byte_idx,3'b000} +:8] <= qspi_data_out;
         end
     end
@@ -166,8 +166,8 @@ module tinyqv_mem_ctrl (
     end
 
     assign data_ready = !instr_active && ((qspi_data_ready && qspi_data_byte_idx == data_txn_len) || qspi_write_done);
-    assign data_from_read = {qspi_data_out, qspi_data_buf[23:16],
+    assign data_from_read = data_ready ? ({qspi_data_out, qspi_data_buf[23:16],
         data_txn_len == 2'b01 ? qspi_data_out : qspi_data_buf[15:8],
-        data_txn_len == 2'b00 ? qspi_data_out : qspi_data_buf[7:0]};
+        data_txn_len == 2'b00 ? qspi_data_out : qspi_data_buf[7:0]}) : qspi_data_buf;
 
 endmodule

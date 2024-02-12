@@ -254,7 +254,7 @@ async def test_read_stall(dut):
                 await ClockCycles(dut.clk, 1, False)
                 assert select.value == 0
                 assert dut.spi_clk_out.value == 0
-                assert dut.data_ready.value == i
+                assert dut.data_ready.value == (0 if stalled else i)
 
             assert dut.data_out.value == data
 
@@ -264,7 +264,7 @@ async def test_read_stall(dut):
                     assert select.value == 0
                     assert dut.spi_clk_out.value == 0
                     assert dut.spi_data_oe.value == 0
-                    assert dut.data_ready.value == 1
+                    assert dut.data_ready.value == 0
                     assert dut.data_out.value == data
                 stalled = False
                 dut.stall_txn.value = 0
