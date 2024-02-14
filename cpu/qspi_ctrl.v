@@ -97,7 +97,6 @@ module qspi_controller (
     wire stop_txn_now = stop_txn_reg || (stop_txn && !(is_writing && !spi_clk_out));
 
     reg [2:0] read_cycles_count;
-    wire [2:0] next_read_cycles_count = read_cycles_count - 3'b001;
 
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
 /* verilator lint_off WIDTHTRUNC */
@@ -209,7 +208,6 @@ module qspi_controller (
             end
         end else if (read_cycles_count == 0 && fsm_state == FSM_DATA) begin
             data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
-            read_cycles_count <= 1;
         end
     end
 
