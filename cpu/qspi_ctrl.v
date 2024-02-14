@@ -17,8 +17,14 @@
    - if data is not ready the clock can be temporarily stalled with stall_txn,
    - Or set stop_txn high to cancel the write.
 
-    TODO: Round trip latency of the TT mux is a little over 20ns, so will need configurable 
-    delay cycles for reads if we intend to reach faster clock speeds
+   Round trip latency of the TT mux is a little over 20ns, so we need configurable 
+   delay cycles for reads to reach faster clock speeds.  The delay is configured
+   by setting spi_data_in[2:0] to the number of additional read delay cycles and 
+   clocking the controller while in reset.  Care must be taken bringing the design 
+   out of reset to ensure the configuration is not accidentally modified.
+   Note that tinyQV's reset is latched on the negative edge of clk, so reset must be 
+   released while clock is high.
+   TODO: Currently only latency 0-2 work.
 
     TODO: Should use continuous read mode on the flash
     TODO: Maybe should use QPI command mode on the RAM
@@ -75,6 +81,7 @@ module qspi_controller (
     reg [ADDR_BITS-1:0]       addr;
     reg [DATA_WIDTH_BITS-1:0] data;
     reg [$clog2(`max(DATA_WIDTH_BITS,`max(ADDR_BITS,31)))-3:0] nibbles_remaining;
+    reg [2:0] delay_cycles_cfg;
 
     assign data_out = data;
     assign busy = fsm_state != FSM_IDLE;
@@ -89,8 +96,17 @@ module qspi_controller (
     end
     wire stop_txn_now = stop_txn_reg || (stop_txn && !(is_writing && !spi_clk_out));
 
+    reg [2:0] read_cycles_count;
+    wire [2:0] next_read_cycles_count = read_cycles_count - 3'b001;
+
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
 /* verilator lint_off WIDTHTRUNC */
+
+    always @(posedge clk) begin
+        if (!rstn) begin
+            delay_cycles_cfg <= spi_data_in[2:0];
+        end
+    end
 
     always @(posedge clk) begin
         if (!rstn || stop_txn_now) begin
@@ -119,14 +135,19 @@ module qspi_controller (
                     spi_ram_b_select <= addr_in[24:23] != 2'b11;
                 end
             end else begin
+                if (read_cycles_count == 0) read_cycles_count <= 3'b001;
+                else read_cycles_count <= read_cycles_count - 3'b001;
+
                 if (fsm_state == FSM_STALLED) begin
+                    spi_clk_out <= 0;
                     if (!stall_txn) begin
                         data_ready <= !is_writing;
                         fsm_state <= FSM_DATA;
+                        read_cycles_count <= delay_cycles_cfg;
                     end
                 end else begin
                     spi_clk_out <= !spi_clk_out;
-                    if (spi_clk_out) begin
+                    if ((fsm_state == FSM_DATA && !is_writing) ? (read_cycles_count == 0) : spi_clk_out) begin
                         if (nibbles_remaining == 0) begin
                             if (fsm_state == FSM_DATA) begin
                                 data_ready <= !is_writing && !stall_txn;
@@ -153,6 +174,7 @@ module qspi_controller (
                                 end
                                 else if (fsm_state == FSM_DUMMY2) begin
                                     nibbles_remaining <= (DATA_WIDTH_BITS >> 2)-1;
+                                    read_cycles_count <= delay_cycles_cfg;
                                 end
                             end
                         end else begin
@@ -185,8 +207,9 @@ module qspi_controller (
                     data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
                 end
             end
-        end else if (!spi_clk_out && fsm_state == FSM_DATA) begin
+        end else if (read_cycles_count == 0 && fsm_state == FSM_DATA) begin
             data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
+            read_cycles_count <= 1;
         end
     end
 
