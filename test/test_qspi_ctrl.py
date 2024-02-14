@@ -268,6 +268,7 @@ async def test_read_stall(dut):
                             assert dut.spi_data_oe.value == 0
                             break
 
+            dut.stall_txn.value = 0
             dut.stop_txn.value = 1
             await ClockCycles(dut.clk, 1, False)
             assert dut.spi_flash_select.value == 1

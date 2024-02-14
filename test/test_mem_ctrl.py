@@ -147,12 +147,13 @@ async def start_data_write(dut, data, len_code, delay_start):
         assert select.value == 0
         assert dut.spi_clk_out.value == 0
 
-async def reset(dut):
+async def reset(dut, latency=1):
     clock = Clock(dut.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
     dut.rstn.value = 1
     await ClockCycles(dut.clk, 2)
     dut.rstn.value = 0
+    dut.spi_data_in.value = latency
     await ClockCycles(dut.clk, 3, False)
     dut.rstn.value = 1
     dut.spi_data_in.value = 0
