@@ -177,21 +177,26 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    wire no_write_in_progress = data_write_n == 2'b11;
+    reg no_write_in_progress;
+    always @(posedge clk) begin
+        if (!rstn) begin
+            data_write_n <= 2'b11;
+            no_write_in_progress <= 1;
+        end else if (is_store && address_ready) begin
+            data_write_n <= mem_op[1:0];
+            no_write_in_progress <= 0;
+        end else if (data_ready) begin
+            data_write_n <= 2'b11;
+            if (counter_hi == 3'b111) no_write_in_progress <= 1;
+        end else if (counter_hi == 3'b111) begin
+            no_write_in_progress <= data_write_n == 2'b11;
+        end
+    end
 
     always @(posedge clk) begin
         if (is_store && no_write_in_progress) begin
             data_out[counter+:4] <= data_out_slice;
         end
-    end
-
-    always @(posedge clk) begin
-        if (!rstn)
-            data_write_n <= 2'b11;
-        else if (is_store && address_ready)
-            data_write_n <= mem_op[1:0]; 
-        else if (data_ready)
-            data_write_n <= 2'b11;
     end
 
     reg load_started;
@@ -268,7 +273,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire pc_wrap = next_pc_offset[3] && instr_complete;
     wire [3:1] instr_avail_len = instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
 
-    wire [3:1] next_instr_write_offset = instr_write_offset + (instr_ready ? 3'b001 : 3'b000) - (pc_wrap ? 3'b100 : 3'b000);
+    wire [3:1] next_instr_write_offset = instr_write_offset + (instr_ready && instr_fetch_running ? 3'b001 : 3'b000) - (pc_wrap ? 3'b100 : 3'b000);
     wire next_instr_stall = (next_instr_write_offset == {1'b1, pc_offset});
 
     always @(posedge clk) begin

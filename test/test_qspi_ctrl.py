@@ -329,7 +329,7 @@ async def test_stop(dut):
 
 @cocotb.test()
 async def test_latency(dut):
-    for latency in range(1, 8):
+    for latency in range(1, 6):
         await reset(dut, latency)
 
         for k in range(3):
@@ -382,30 +382,38 @@ async def test_latency(dut):
             assert dut.spi_clk_out.value == 0
             assert dut.data_ready.value == 1
             assert dut.data_out.value == data0
-            data0 = data
             for i in range(latency):
                 await ClockCycles(dut.clk, 1, False)
-                assert dut.data_ready.value == 0
+                if latency >= 4 and i == latency - 2:
+                    assert dut.data_ready.value == 1
+                    assert dut.data_out.value == data
+                    data = random.randint(0, 255)                    
+                else:
+                    assert dut.data_ready.value == 0
                 assert dut.spi_clk_out.value == (1 if i & 1 == 0 else 0)
 
-            for i in range(latency-1, 20):
+            for i in range(latency, 20):
                 if (i & 3) == 0:
-                    data0 = data
                     data = random.randint(0, 255)
-                if (i & 1) == 0: 
-                    dut.spi_data_in.value = (data >> (4 - (i & 2) * 2)) & 0xF
-                    await ClockCycles(dut.clk, 1, False)
-                    assert select.value == 0
-                    assert dut.spi_clk_out.value == 0
-                    assert dut.spi_data_oe.value == 0
-                else:
+                if (i & 1) == 0:
+                    if (latency & 1) == 0:
+                        dut.spi_data_in.value = (data >> (4 - (i & 2) * 2)) & 0xF
                     await ClockCycles(dut.clk, 1, False)
                     assert select.value == 0
                     assert dut.spi_clk_out.value == 1
                     assert dut.spi_data_oe.value == 0
-                if i & 3 == (1 + latency) & 3:
+                else:
+                    if (latency & 1) == 1:
+                        dut.spi_data_in.value = (data >> (4 - (i & 2) * 2)) & 0xF
+                    await ClockCycles(dut.clk, 1, False)
+                    assert select.value == 0
+                    assert dut.spi_clk_out.value == 0
+                    assert dut.spi_data_oe.value == 0
+                if i & 3 == [3, 3, 2, 3, 2, 3][latency]:
                     assert dut.data_ready.value == 1
-                    assert dut.data_out.value == (data if latency < 3 else data0)
+                    assert dut.data_out.value == data
+                else:
+                    assert dut.data_ready.value == 0
 
             dut.stop_txn.value = 1
 
