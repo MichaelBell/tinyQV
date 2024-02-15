@@ -222,6 +222,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         rstn,
         
         imm[counter+:4],
+        imm[11:0],
 
         is_load && instr_valid && no_write_in_progress,
         is_alu_imm && instr_valid,

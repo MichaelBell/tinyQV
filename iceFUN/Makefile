@@ -11,7 +11,7 @@ iceFUN:
 	verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-MULTITOP $(FILES)
 
 	# synthesize using Yosys
-	yosys -p "synth_ice40 -top tinyQV_top -json $(PROJ).json" $(FILES) > yosys.log
+	yosys -p "synth_ice40 -abc9 -top tinyQV_top -json $(PROJ).json" $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
 	@grep "   Number of cells" yosys.log

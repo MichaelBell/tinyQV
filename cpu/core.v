@@ -8,6 +8,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input rstn,
 
     input [3:0] imm,
+    input [11:0] imm_lo,
 
     input is_load,
     input is_alu_imm,
@@ -143,6 +144,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else if (is_jal || is_jalr) begin
             wr_en = 1;
             data_rd = next_pc;
+        end else if (is_system) begin
+            if (alu_op[1:0] != 2'b00) begin
+                // CSR read
+                wr_en = 1;
+                data_rd = csr_read;
+            end
         end
     end
 
@@ -171,7 +178,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (last_count) begin
             if (is_alu_imm || is_alu_reg)
                 instr_complete = cycle == alu_cycles;
-            else if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_stall)
+            else if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall)
                 instr_complete = 1;
             else if (load_done && is_load)
                 instr_complete = 1;
@@ -221,6 +228,47 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if ((mem_op[1:0] == 2'b00 && counter > 1) ||
             (mem_op[1:0] == 2'b01 && counter > 3))
             data_out = 0;
+    end
+
+
+    ///////// Counters /////////
+
+    wire [6:0] cycle_count_wide;
+    tinyqv_counter #(.OUTPUT_WIDTH(7)) i_cycles (
+        .clk(clk),
+        .rstn(rstn),
+        .add(1'b1),
+        .counter(counter),
+        .data(cycle_count_wide)
+    );
+
+    wire [3:0] cycle_count = cycle_count_wide[3:0];
+    wire [3:0] time_count = (counter == 7) ? {3'b000, cycle_count_wide[3]} : cycle_count_wide[6:3];
+
+    wire [3:0] instrret_count;
+    reg instr_retired;
+    always @(posedge clk) begin
+        instr_retired <= instr_complete && !is_stall;
+    end
+    tinyqv_counter i_instrret (
+        .clk(clk),
+        .rstn(rstn),
+        .add(instr_retired),
+        .counter(counter),
+        .data(instrret_count)
+    );
+
+    reg [3:0] csr_read;
+    always @(*) begin
+        case (imm_lo) 
+            12'h301: csr_read = (counter == 0 || counter == 7) ? 4'b0100 :  // C, 32
+                                (counter == 1) ?                 4'b0001 :  // E
+                                                                 4'b0000;
+            12'hC00: csr_read = cycle_count;
+            12'hC01: csr_read = time_count;
+            12'hC02: csr_read = instrret_count;
+            default: csr_read = 4'b0000;
+        endcase
     end
 
 endmodule

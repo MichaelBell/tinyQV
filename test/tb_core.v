@@ -95,6 +95,7 @@ end
         rstn,
         
         imm[counter+:4],
+        imm[11:0],
 
         is_load,
         is_alu_imm,

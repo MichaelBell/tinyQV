@@ -6,6 +6,7 @@ from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3, x5
+from riscvmodel import csrnames
 
 async def send_instr(dut, instr, fast=False):
     await ClockCycles(dut.clk, 1)
@@ -22,7 +23,7 @@ async def send_instr(dut, instr, fast=False):
     dut.instr_data_in.value = (instr >> 16) & 0xFFFF
     dut.instr_ready.value = 1
 
-async def read_reg(dut, reg):
+async def read_reg(dut, reg, random_delay=True):
     offset = random.randint(0, 0x7FF)
     instr = InstructionSW(x0, reg, offset).encode()
     await send_instr(dut, instr)
@@ -37,7 +38,10 @@ async def read_reg(dut, reg):
             assert dut.data_write_n.value == 0b10
             assert dut.data_addr.value == offset
             val = dut.data_out.value
-            await ClockCycles(dut.clk, random.randint(1, 16))
+            if random_delay:
+                await ClockCycles(dut.clk, random.randint(1, 16))
+            else:
+                await ClockCycles(dut.clk, 1)
             dut.data_ready.value = 1
             assert dut.data_out.value == val
             await ClockCycles(dut.clk, 1)
@@ -100,7 +104,7 @@ async def start(dut):
     dut.instr_ready.value = 0
     dut.data_ready.value = 0
     dut.data_in.value = 0
-    await ClockCycles(dut.clk, 2)
+    await ClockCycles(dut.clk, 10)
     dut.rstn.value = 1
 
     await ClockCycles(dut.clk, 1)
@@ -259,3 +263,21 @@ async def test_branch(dut):
     await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode())
     await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode())
     await expect_branch(dut, 0x38)
+
+@cocotb.test()
+async def test_csr(dut):
+    await start(dut)
+
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.cycle - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 3
+    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.cycle - 0x1000).encode())
+    assert await read_reg(dut, x2, False) == 9
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.instret - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 4
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.instret - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 6
+    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.cycle - 0x1000).encode())
+    assert await read_reg(dut, x2, False) == 27
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.misa).encode())
+    assert await read_reg(dut, x1, False) == 0x40000014
+
