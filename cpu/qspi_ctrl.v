@@ -152,7 +152,7 @@ module qspi_controller (
                             read_cycles_count <= delay_cycles_cfg;
                         end else begin
                             fsm_state <= FSM_STALL_RECOVER;
-                            read_cycles_count <= delay_cycles_cfg[0];
+                            read_cycles_count <= {2'b00, delay_cycles_cfg[0]};
                         end
                     end
                 end else begin

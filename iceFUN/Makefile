@@ -2,7 +2,7 @@
 PROJ      = tinyqv
 
 # Files
-FILES = iceFUN.v ledscan.v ../cpu/*.v ../peri/uart/*.v
+FILES = iceFUN.v ledscan.v ../cpu/*.v ../peri/uart/*.v ../peri/spi/*.v
 
 .PHONY: iceFUN clean burn
 

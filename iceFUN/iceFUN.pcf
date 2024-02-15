@@ -36,4 +36,4 @@ set_io --warn-no-port uart_rxd  A3
 set_io --warn-no-port uart_rts  A1
 
 set_frequency clk12MHz 12
-set_frequency clk 40
+set_frequency clk 32
