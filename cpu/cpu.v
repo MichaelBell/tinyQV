@@ -312,7 +312,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    assign instr_fetch_restart = !instr_fetch_running;
+    // Make sure instr_fetch_restart pulses low on branch
+    assign instr_fetch_restart = !instr_fetch_running && !branch;
     assign instr_fetch_stall = next_instr_stall;
 
     assign instr_addr = {instr_data_start, 2'b00} + {20'd0, instr_write_offset};

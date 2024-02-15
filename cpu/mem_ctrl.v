@@ -52,8 +52,8 @@ module tinyqv_mem_ctrl (
         if (qspi_busy || qspi_write_done) begin
             // A transaction is running
             if (instr_active) begin
-                if (instr_fetch_restart && !instr_fetch_started) begin
-                    // Stop immediately on restart
+                if ((instr_fetch_restart && !instr_fetch_started) || stall_txn) begin
+                    // Stop immediately on restart or if already stalled
                     stop_txn = 1;
                 end else if (qspi_data_ready && qspi_data_byte_idx == 2'b01) begin
                     // End of previous transaction, stop if a data txn is waiting
