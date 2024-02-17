@@ -32,7 +32,7 @@ async def test_load_store(dut):
         await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
-        assert dut.addr_out.value.signed_integer == offset + 0x1000
+        assert dut.addr_out.value.signed_integer == offset + 0x1000400
         await ClockCycles(dut.clk, 8)
         dut.load_data_ready.value = 1
         dut.data_in.value = val
@@ -47,7 +47,7 @@ async def test_load_store(dut):
         await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 1
         assert dut.address_ready.value == 1
-        assert dut.addr_out.value.signed_integer == offset + 0x1000
+        assert dut.addr_out.value.signed_integer == offset + 0x1000400
         assert dut.data_out.value == val & op[1]
 
 async def send_instr(dut, instr, cycles=0):
@@ -66,7 +66,7 @@ async def send_instr(dut, instr, cycles=0):
 
 def fix_hardcoded_reg_value(reg, val):
     if reg == 0: return 0
-    elif reg == 3: return 0x1000
+    elif reg == 3: return 0x1000400
     elif reg == 4: return 0x8000000
     return val
 
@@ -88,7 +88,7 @@ async def set_reg_value(dut, reg, val):
     await ClockCycles(dut.clk, 8)
     assert dut.instr_complete.value == 0
     assert dut.address_ready.value == 1
-    assert dut.addr_out.value.signed_integer == offset + 0x1000
+    assert dut.addr_out.value.signed_integer == offset + 0x1000400
     dut.load_data_ready.value = 1
     dut.data_in.value = val
     await ClockCycles(dut.clk, 16)
@@ -123,7 +123,7 @@ async def test_load(dut):
         await ClockCycles(dut.clk, 8)
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
-        assert dut.addr_out.value.signed_integer == offset + 0x1000
+        assert dut.addr_out.value.signed_integer == offset + 0x1000400
         for cycle in range(random.randint(1, 20)):
             await ClockCycles(dut.clk, 8)
             assert dut.instr_complete.value == 0
@@ -453,7 +453,7 @@ async def test_random(dut):
         random.seed(seed + test)
         dut._log.info("Running test with seed {}".format(seed + test))
         for i in range(1, 16):
-            if i == 3: reg[i] = 0x1000
+            if i == 3: reg[i] = 0x1000400
             elif i == 4: reg[i] = 0x8000000
             else:
                 reg[i] = random.randint(-0x80000000, 0x7FFFFFFF)

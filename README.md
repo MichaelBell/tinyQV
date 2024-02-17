@@ -40,7 +40,7 @@ Should be able to execute 1 cycle 16-bit instructions at one instruction every 8
 
 Fullish RV32EC, with a few exceptions:
 - Addresses are 28-bits
-- gp is hardcoded to 0x1000, tp is hardcoded to 0x8000000.  Peripherals will have addresses in the 2K above tp, so it an be used for fast access.  gp can be used for fast access to data at the bottom of flash.
+- gp is hardcoded to 0x1000400, tp is hardcoded to 0x8000000.  Peripherals will have addresses in the 2K above tp, so it can be used for fast access.  gp can be used for fast access to data at the bottom of flash.
 
 Only M mode is supported.
 
@@ -73,7 +73,7 @@ CSRs:
 
 ## QSPI memory interface
 
-Use flash in continuous read mode.  Writes to flash not supported.  On boot will enter continuous read mode once when reading the instruction at address 0.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I asusme this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.
+Use flash in continuous read mode.  Writes to flash not supported.  On boot will enter continuous read mode once when reading the instruction at address 0.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.
 
 In continuous read mode a QSPI read can be initiated with a 12 cycle preamble (6 cycles for the 24-bit address, 2 cycles for the mode, 4 dummy cycles).
 

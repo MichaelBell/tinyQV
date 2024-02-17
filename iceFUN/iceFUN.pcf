@@ -31,7 +31,7 @@ set_io --warn-no-port sd[3]     K3
 set_io --warn-no-port ram_a_cs  M3
 set_io --warn-no-port ram_b_cs  G1
 
-set_io --warn-no-port uart_txd  A2
+set_io --warn-no-port uart_txd  P2   # A2
 set_io --warn-no-port uart_rxd  A3
 set_io --warn-no-port uart_rts  A1
 

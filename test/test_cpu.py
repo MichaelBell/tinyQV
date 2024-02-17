@@ -186,7 +186,7 @@ async def test_random_alu(dut):
         random.seed(seed + test)
         dut._log.info("Running test with seed {}".format(seed + test))
         for i in range(1, 16):
-            if i == 3: reg[i] = 0x1000
+            if i == 3: reg[i] = 0x1000400
             elif i == 4: reg[i] = 0x8000000
             else:
                 reg[i] = random.randint(-0x80000000, 0x7FFFFFFF)

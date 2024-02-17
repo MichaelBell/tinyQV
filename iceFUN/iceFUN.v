@@ -143,7 +143,7 @@ module tinyQV_top (
     wire [7:0] uart_rx_data;
     wire uart_tx_start = write_n != 2'b11 && connect_peripheral == PERI_UART;
 
-    uart_tx #(.CLK_HZ(40_000_000), .BIT_RATE(115_200)) i_uart_tx(
+    uart_tx #(.CLK_HZ(32_000_000), .BIT_RATE(115_200)) i_uart_tx(
         .clk(clk),
         .resetn(rst_reg_n),
         .uart_txd(uart_txd),
@@ -152,7 +152,7 @@ module tinyQV_top (
         .uart_tx_busy(uart_tx_busy) 
     );
 
-    uart_rx #(.CLK_HZ(40_000_000), .BIT_RATE(115_200)) i_uart_rx(
+    uart_rx #(.CLK_HZ(32_000_000), .BIT_RATE(115_200)) i_uart_rx(
         .clk(clk),
         .resetn(rst_reg_n),
         .uart_rxd(uart_rxd),

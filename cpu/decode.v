@@ -44,7 +44,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     wire [31:0] CBimm        = {{24{instr[12]}}, instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
     wire [31:0] CALUimm      = {{27{instr[12]}}, instr[6:2]};          // ADDI, LI, shifts, ANDI
     wire [31:0] CLUIimm      = {14'b0, instr[12], instr[6:2], 12'b0};
-    wire [31:0] CADDI16SPimm = {22'b0, instr[12], instr[4:3], instr[5], instr[2], instr[6], 4'b0};
+    wire [31:0] CADDI16SPimm = {{23{instr[12]}}, instr[4:3], instr[5], instr[2], instr[6], 4'b0};
     wire [31:0] CADDI4SPimm  = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
 
     always @(*) begin
@@ -95,7 +95,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             rs2 = {REG_ADDR_BITS{1'bx}};
             rd = {REG_ADDR_BITS{1'bx}};
 
-            case ({instr[15:13], instr[1:0]})
+            case ({instr[1:0], instr[15:13]})
                 5'b00000: begin // ADDI4SPN 
                     is_alu_imm = 1;
                     imm = CADDI4SPimm;
@@ -104,12 +104,14 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                 end
                 5'b00010: begin // LW
                     is_load = 1;
+                    mem_op = 3'b010;
                     imm = CLSWimm;
                     rs1 = {1'b1, instr[9:7]};
                     rd  = {1'b1, instr[4:2]};
                 end 
                 5'b00110: begin // SW
                     is_store = 1;
+                    mem_op = 3'b010;
                     imm = CLSWimm;
                     rs1 = {1'b1, instr[9:7]};
                     rs2 = {1'b1, instr[4:2]};
@@ -132,13 +134,13 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     rd  = instr[10:7];
                 end
                 5'b01011: begin // ADDI16SP/LUI
-                    is_alu_imm = 1;
                     rd  = instr[10:7];
                     if (instr[10:7] == 4'd2) begin
+                        is_alu_imm = 1;
                         imm = CADDI16SPimm;
                         rs1 = 4'd2;
                     end else begin
-                        rs1 = 4'd0;
+                        is_lui = 1;
                         imm = CLUIimm;
                     end
                 end
@@ -174,6 +176,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     imm = CBimm;
                     rs1 = {1'b1, instr[9:7]};
                     rs2 = 4'd0;
+                    alu_op = 4'b0100;
                     mem_op = 3'b000;
                 end    
                 5'b01111: begin // BNEZ
@@ -181,6 +184,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     imm = CBimm;
                     rs1 = {1'b1, instr[9:7]};
                     rs2 = 4'd0;
+                    alu_op = 4'b0100;
                     mem_op = 3'b001;
                 end
                 5'b10000: begin // SLLI
@@ -192,14 +196,23 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                 end
                 5'b10010: begin // LWSP
                     is_load = 1;
+                    mem_op = 3'b010;
                     imm = CLWSPimm;
                     rs1 = 4'd2;
+                    rd  = instr[10:7];
+                end
+                5'b10011: begin // LWTP
+                    is_load = 1;
+                    mem_op = 3'b010;
+                    imm = CLWSPimm;
+                    rs1 = 4'd4;
                     rd  = instr[10:7];
                 end
                 5'b10100: begin 
                     if (instr[6:2] == 0) begin
                         if (instr[11:7] == 0) begin  // EBREAK
                             is_system = 1;
+                            imm = 1;
                         end else begin // J(AL)R
                             is_jalr = 1;
                             imm = 0;
@@ -208,19 +221,28 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                         end
                     end else begin  // MV / ADD
                         is_alu_reg = 1;
-                        rs1 = instr[12] ? 4'd0 : instr[10:7];
+                        rs1 = instr[12] ? instr[10:7] : 4'd0;
                         rs2 = instr[5:2];
                         rd  = instr[10:7];
                     end
                 end
                 5'b10110: begin // SWSP
                     is_store = 1;
+                    mem_op = 3'b010;
                     imm = CSWSPimm;
                     rs1 = 4'd2;
                     rs2 = instr[5:2];
                 end
+                5'b10111: begin // SWTP
+                    is_store = 1;
+                    mem_op = 3'b010;
+                    imm = CSWSPimm;
+                    rs1 = 4'd4;
+                    rs2 = instr[5:2];
+                end
                 default: begin
                     is_system = 1;
+                    imm = 32'd2;
                 end
             endcase
         end

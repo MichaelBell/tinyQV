@@ -35,8 +35,8 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         for (i = 0; i < 2**REG_ADDR_BITS; i = i + 1) begin
             if (i == 0 || i >= NUM_REGS) begin
                 assign reg_access[i] = 0;
-            end else if (i == 3) begin // gp is hardcoded to 0x00001000
-                assign reg_access[i] = {3'b0, (counter == 3)};
+            end else if (i == 3) begin // gp is hardcoded to 0x01000400
+                assign reg_access[i] = {1'b0, (counter == 2), 1'b0, (counter == 6)};
             end else if (i == 4) begin // tp is hardcoded to 0x08000000
                 assign reg_access[i] = {(counter == 6), 3'b0};
             end else begin
