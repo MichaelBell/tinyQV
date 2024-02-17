@@ -319,7 +319,12 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     assign instr_addr = {instr_data_start, 2'b00} + {20'd0, instr_write_offset};
 
-    assign instr = instr_valid ? {instr_data[next_pc_offset[2:1] + 2'b01], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset + 2'b01], instr_data[pc_offset]};
+    /* verilator lint_off WIDTHTRUNC */
+    wire [2:1] pc_offset_hi = pc_offset + 2'b01;
+    wire [2:1] next_pc_offset_hi = next_pc_offset + 2'b01;
+    /* verilator lint_on WIDTHTRUNC */
+
+    assign instr = instr_valid ? {instr_data[next_pc_offset_hi], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset_hi], instr_data[pc_offset]};
     assign pc = {8'h00, instr_data_start, pc_offset, 1'b0};
     assign next_pc_for_core = {8'h00, next_pc};
 
