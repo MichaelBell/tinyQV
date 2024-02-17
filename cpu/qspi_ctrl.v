@@ -92,15 +92,14 @@ module qspi_controller (
     assign data_out = data;
     assign busy = fsm_state != FSM_IDLE;
 
-    wire stop_txn_next = (stop_txn && is_writing && !spi_clk_out);
     reg stop_txn_reg;
     always @(posedge clk) begin
         if (!rstn) 
             stop_txn_reg <= 0;
         else
-            stop_txn_reg <= stop_txn_next;
+            stop_txn_reg <= stop_txn && !stop_txn_now;
     end
-    wire stop_txn_now = stop_txn_reg || (stop_txn && !(is_writing && !spi_clk_out));
+    wire stop_txn_now = stop_txn_reg || (stop_txn && (!is_writing || spi_clk_out));
 
     reg [2:0] read_cycles_count;
 
@@ -253,5 +252,73 @@ module qspi_controller (
 
     wire ram_a_block = (last_ram_a_sel == 0) && addr_in[24:23] == 2'b10;
     wire ram_b_block = (last_ram_b_sel == 0) && addr_in[24:23] == 2'b11;
+
+
+    `ifdef FORMAL
+    // register for knowing if we have just started
+    reg [1:0] f_past_valid = 2'b00;
+    reg f_reset_done = 0;
+    // start in reset
+    initial assume(!rstn);
+    always @(posedge clk) begin
+        // update past_valid reg so we know it's safe to use $past()
+        f_past_valid <= {f_past_valid[0], 1'b1};
+
+        // Reset for 2 cycles, and then never again
+        assume(((f_past_valid == 2'b11) ? 0 : 1) + rstn == 1);
+
+        // Only select one chip
+        if (f_past_valid)
+            assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select >= 2);
+
+        // Busy is correct
+        if (f_past_valid)
+            if (spi_flash_select + spi_ram_a_select + spi_ram_b_select == 2)
+                assert(busy);
+            else
+                assert(!busy);
+
+        // RAM must be deselected for at least 2 cycles
+        if (f_past_valid == 2'b11) begin
+            assert(!(!spi_ram_a_select && $past(spi_ram_a_select) && $past(!spi_ram_a_select, 2)));
+            assert(!(!spi_ram_b_select && $past(spi_ram_b_select) && $past(!spi_ram_b_select, 2)));
+        end
+
+        // Starting works
+        assume(start_read + start_write < 2);
+        if (start_write) assume(addr_in[24]);
+        if (f_past_valid && $past(rstn && !busy && (start_read || start_write) && !stop_txn)) begin
+            if (($past(addr_in[24:23] == 2'b10) && $past(!spi_ram_a_select, 2)) ||
+                ($past(addr_in[24:23] == 2'b11) && $past(!spi_ram_b_select, 2))) begin
+                assert(!busy);
+            end else begin
+                assert(busy);
+                assert(is_writing == $past(start_write));
+            end
+        end
+
+        // Only stall on request
+        if (f_past_valid && fsm_state == FSM_STALLED && $past(fsm_state != FSM_STALLED))
+            assert($past(stall_txn));
+
+        // No positive clock edges when stalled
+        if (f_past_valid == 2'b11 && $past(fsm_state == FSM_STALLED) && busy && $past(!spi_clk_out))
+            assert(!spi_clk_out);
+
+        // SPI Clock runs while transaction in progress and not stalled
+        if (f_past_valid && busy && fsm_state != FSM_STALLED && $past(fsm_state != FSM_STALLED))
+            assert(spi_clk_out != $past(spi_clk_out));
+
+        // Stopping works
+        if (f_past_valid && $past(stop_txn && !is_writing)) begin
+            assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select == 3);
+            assert(spi_clk_out == 1);
+        end
+        if (f_past_valid && $past(stop_txn && is_writing && spi_clk_out)) begin
+            assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select == 3);
+            assert(spi_clk_out == 1);
+        end
+    end
+    `endif
 
 endmodule

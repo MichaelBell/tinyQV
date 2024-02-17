@@ -4,6 +4,7 @@
 *.log
 tinyqv.json
 
+cpu/sby/
 test/__pycache__/
 test/*.vcd
 test/*results.xml
