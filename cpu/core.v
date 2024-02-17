@@ -64,7 +64,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg [2:0] alu_cycles;
     always @(*) begin
-        if (is_slt || is_shift) alu_cycles = 1;
+        if (is_slt || is_shift || is_mul) alu_cycles = 1;
         else alu_cycles = 0;
     end
 
@@ -101,6 +101,13 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     tinyqv_shifter i_shift(alu_op[3:2], counter, tmp_data, shift_amt, shift_out);
 
 
+    ///////// Multiplier /////////
+
+    wire is_mul = alu_op[3] && alu_op[1];
+    wire [3:0] mul_out;
+    tinyqv_mul #(.B_BITS(16)) multiplier(clk, data_rs1 & {4{cycle[0]}}, tmp_data[15:0], mul_out);
+
+
     ///////// Writeback /////////
 
     reg load_top_bit_next;
@@ -127,7 +134,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 data_rd = {3'b000, cmp};
             else if (is_shift && cycle == 1)
                 data_rd = shift_out;
-            else
+            else if (is_mul) begin
+                wr_en = cycle[0];
+                data_rd = mul_out;
+            end else
                 data_rd = alu_out;
 
         end else if (is_load && load_data_ready) begin
@@ -207,12 +217,14 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         tmp_data_shift = 1;
         if (is_shift)
             tmp_data_in = data_rs1;
+        else if (is_mul)
+            tmp_data_in = data_rs2;
         else if (cycle == 0 || is_branch)
             tmp_data_in = alu_out;
         else
             tmp_data_in = data_rs2;
         
-        if (cycle == 1 && is_shift)
+        if (cycle == 1 && (is_shift || is_mul))
             tmp_data_shift = 0;
     end
 

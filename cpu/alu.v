@@ -13,6 +13,9 @@
       0001 SLL: D = A << B
       0101 SRL: D = A >> B
       1101 SRA: D = A >> B (signed)
+
+    Multiply
+      1010 MUL: D = B[15:0] * A
 */
 
 module tinyqv_alu (
@@ -82,5 +85,25 @@ module tinyqv_shifter (
     end
 
     assign d = shift_right ? dr : { dr[ 0], dr[ 1], dr[ 2], dr[ 3]};
+
+endmodule
+
+module tinyqv_mul #(parameter B_BITS=16) (
+    input clk,
+
+    input [3:0] a,
+    input [B_BITS-1:0] b,
+
+    output [3:0] d
+);
+
+    reg [B_BITS-1:0] accum;
+    wire [B_BITS+3:0] next_accum = {4'b0, accum} + {16'd0,a} * {4'd0,b};
+
+    always @(posedge clk) begin
+        accum <= (a != 4'b0000) ? next_accum[B_BITS+3:4] : {4'b0000, accum[B_BITS-1:4]};
+    end
+
+    assign d = next_accum[3:0];
 
 endmodule

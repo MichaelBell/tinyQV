@@ -396,6 +396,23 @@ async def test_shift(dut):
     assert await get_reg_value(dut, x2) == 0xFFFFC000
 
 
+@cocotb.test()
+async def test_multiply(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+
+    await send_instr(dut, InstructionADDI(x1, x0, 2).encode())
+    await send_instr(dut, InstructionADDI(x2, x0, 3).encode())
+    await send_instr(dut, InstructionMUL(x5, x1, x2).encode())
+    assert await get_reg_value(dut, x5) == 6
+    await send_instr(dut, InstructionMUL(x2, x5, x1).encode())
+    assert await get_reg_value(dut, x2) == 12
+    await send_instr(dut, InstructionMUL(x2, x5, x2).encode())
+    assert await get_reg_value(dut, x2) == 12*6
+
 reg = [0] * 16
 
 # Each Op does reg[d] = fn(a, b)
@@ -436,6 +453,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
 ]
 
 @cocotb.test()
@@ -447,7 +465,7 @@ async def test_random(dut):
     dut.rstn.value = 1
 
     seed = random.randint(0, 0xFFFFFFFF)
-    #seed = 2843241462
+    #seed = 1146792006
     debug = False
     for test in range(100):
         random.seed(seed + test)
@@ -467,7 +485,7 @@ async def test_random(dut):
                 assert reg_value == reg[i]
 
         last_instr = ops[0]
-        for i in range(25):
+        for i in range(30):
             while True:
                 try:
                     instr = random.choice(ops)

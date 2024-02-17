@@ -70,6 +70,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             // Determine alu op
             if (is_load || is_auipc || is_store || is_jalr || is_jal) alu_op = 4'b0000;  // ADD
             else if (is_branch) alu_op = {1'b0, !instr[14], instr[14:13]};
+            else if (instr[25] && instr[5]) alu_op = 4'b1010;
             else alu_op = {instr[30] && (instr[5] || instr[13:12] == 2'b01),instr[14:12]};
 
             mem_op = instr[14:12];
@@ -225,6 +226,13 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                         rs2 = instr[5:2];
                         rd  = instr[10:7];
                     end
+                end
+                5'b10101: begin // MUL
+                    is_alu_reg = 1;
+                    alu_op = 4'b1010;
+                    rs1 = instr[10:7];
+                    rs2 = instr[5:2];
+                    rd  = instr[10:7];                    
                 end
                 5'b10110: begin // SWSP
                     is_store = 1;
