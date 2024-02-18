@@ -20,7 +20,7 @@ pico_ice:
 	@echo
 
 	# Place and route using nextpnr
-	nextpnr-ice40 -r --up5k --json $(PROJ).json --package sg48 --asc $(PROJ).asc --opt-timing --pcf pico_ice.pcf > nextpnr.log 2>& 1
+	./nextpnr.sh -r --up5k --json $(PROJ).json --package sg48 --asc $(PROJ).asc --opt-timing --pcf pico_ice.pcf
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
 	@grep "Max frequency.*clk" nextpnr.log | tail -1

@@ -2,11 +2,19 @@ import time
 import random
 from machine import SPI, Pin
 machine.freq(128_000_000)
-spi = SPI(1, 16_000_000)
 
-flash_sel = Pin(9, Pin.OUT)
-ram_a_sel = Pin(14, Pin.OUT)
-ram_b_sel = Pin(15, Pin.OUT)
+for i in range(30):
+    Pin(i, Pin.IN, pull=None)
+
+flash_sel = Pin(9, Pin.IN, Pin.PULL_UP)
+ice_creset_b = machine.Pin(27, machine.Pin.OUT)
+ice_creset_b.value(0)
+
+spi = SPI(0, 16_000_000, sck=Pin(2), mosi=Pin(3), miso=Pin(0))
+
+flash_sel = Pin(1, Pin.OUT)
+ram_a_sel = Pin(4, Pin.OUT)
+ram_b_sel = Pin(6, Pin.OUT)
 
 flash_sel.on()
 ram_a_sel.on()
@@ -48,4 +56,4 @@ for ram in (ram_a_sel, ram_b_sel):
 
         for i in range(8):
             if buf[i] != data[i]:
-                raise Exception(f"Error {} != {} at addr {addr}+{i}")
+                raise Exception(f"Error {buf[i]} != {data[i]} at addr {addr}+{i}")

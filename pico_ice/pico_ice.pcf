@@ -16,4 +16,4 @@ set_io --warn-no-port uart_txd  28
 set_io --warn-no-port uart_rxd  32
 set_io --warn-no-port uart_rts  36
 
-set_frequency clk 8
+set_frequency clk 16

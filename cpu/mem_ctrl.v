@@ -55,8 +55,8 @@ module tinyqv_mem_ctrl (
                 if (instr_fetch_restart && (!instr_fetch_started || stall_txn)) begin
                     // Stop immediately on restart or if already stalled
                     stop_txn = 1;
-                end else if (qspi_data_ready && qspi_data_byte_idx == 2'b01) begin
-                    // End of previous transaction, stop if a data txn is waiting
+                end else if ((qspi_data_ready && qspi_data_byte_idx == 2'b01) || instr_fetch_stall) begin
+                    // End of previous transaction or instruction buffer full, stop if a data txn is waiting
                     if (data_txn_n != 2'b11) begin
                         stop_txn = 1;
                     end
