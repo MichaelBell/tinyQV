@@ -27,8 +27,8 @@ module tinyqv_mem_ctrl (
     // External SPI interface
     input      [3:0] spi_data_in,
     output     [3:0] spi_data_out,
-    output reg [3:0] spi_data_oe,
-    output reg       spi_clk_out,
+    output     [3:0] spi_data_oe,
+    output           spi_clk_out,
     output           spi_flash_select,
     output           spi_ram_a_select,
     output           spi_ram_b_select
@@ -52,8 +52,8 @@ module tinyqv_mem_ctrl (
         if (qspi_busy || qspi_write_done) begin
             // A transaction is running
             if (instr_active) begin
-                if ((instr_fetch_restart && !instr_fetch_started) || stall_txn) begin
-                    // Stop immediately on restart or if already stalled
+                if (instr_fetch_restart && !instr_fetch_started) begin
+                    // Stop immediately on restart
                     stop_txn = 1;
                 end else if (qspi_data_ready && qspi_data_byte_idx == 2'b01) begin
                     // End of previous transaction, stop if a data txn is waiting
@@ -98,7 +98,7 @@ module tinyqv_mem_ctrl (
     wire [7:0] qspi_data_out;
 
     // Only stall on the last byte of an instruction
-    wire stall_txn = instr_active && instr_fetch_stall && qspi_data_byte_idx == 2'b01;
+    wire stall_txn = instr_active && instr_fetch_stall && !instr_ready && qspi_data_byte_idx == 2'b01;
 
     wire [1:0] write_qspi_data_byte_idx = qspi_data_byte_idx + (qspi_data_req ? 2'b01 : 2'b00);
     qspi_controller q_ctrl(

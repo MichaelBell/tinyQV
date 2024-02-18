@@ -2,6 +2,7 @@
 *.asc
 *.bin
 *.log
+*.uf2
 tinyqv.json
 
 cpu/sby/

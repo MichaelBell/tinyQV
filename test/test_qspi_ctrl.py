@@ -12,7 +12,7 @@ async def start_read(dut):
     assert dut.spi_flash_select.value == 1
     assert dut.spi_ram_a_select.value == 1
     assert dut.spi_ram_b_select.value == 1
-    assert dut.spi_clk_out.value == 1
+    assert dut.spi_clk_out.value == 0
 
     addr = random.randint(0, (1 << 25) - 1)
     if addr >= 0x1800000:
@@ -86,7 +86,7 @@ async def start_write(dut, data):
     assert dut.spi_flash_select.value == 1
     assert dut.spi_ram_a_select.value == 1
     assert dut.spi_ram_b_select.value == 1
-    assert dut.spi_clk_out.value == 1
+    assert dut.spi_clk_out.value == 0
 
     addr = random.randint(1 << 24, (1 << 25) - 1)
     if addr >= 0x1800000:
@@ -176,7 +176,7 @@ async def test_simple_read(dut):
             assert dut.spi_flash_select.value == 1
             assert dut.spi_ram_a_select.value == 1
             assert dut.spi_ram_b_select.value == 1
-            assert dut.spi_clk_out.value == 1
+            assert dut.spi_clk_out.value == 0
             assert dut.spi_data_oe.value == 0
             assert dut.data_ready.value == 0
             dut.stop_txn.value = 0
@@ -223,7 +223,7 @@ async def test_simple_write(dut):
             assert dut.spi_flash_select.value == 1
             assert dut.spi_ram_a_select.value == 1
             assert dut.spi_ram_b_select.value == 1
-            assert dut.spi_clk_out.value == 1
+            assert dut.spi_clk_out.value == 0
             assert dut.spi_data_oe.value == 0
             assert dut.data_ready.value == 0
             dut.stop_txn.value = 0
@@ -274,7 +274,7 @@ async def test_read_stall(dut):
             assert dut.spi_flash_select.value == 1
             assert dut.spi_ram_a_select.value == 1
             assert dut.spi_ram_b_select.value == 1
-            assert dut.spi_clk_out.value == 1
+            assert dut.spi_clk_out.value == 0
             assert dut.spi_data_oe.value == 0
             assert dut.data_ready.value == 0
             dut.stop_txn.value = 0
@@ -322,7 +322,7 @@ async def test_stop(dut):
                 assert dut.spi_flash_select.value == 1
                 assert dut.spi_ram_a_select.value == 1
                 assert dut.spi_ram_b_select.value == 1
-                assert dut.spi_clk_out.value == 1
+                assert dut.spi_clk_out.value == 0
                 assert dut.spi_data_oe.value == 0
                 assert dut.data_ready.value == 0
 
@@ -422,7 +422,7 @@ async def test_latency(dut):
                 assert dut.spi_flash_select.value == 1
                 assert dut.spi_ram_a_select.value == 1
                 assert dut.spi_ram_b_select.value == 1
-                assert dut.spi_clk_out.value == 1
+                assert dut.spi_clk_out.value == 0
                 assert dut.spi_data_oe.value == 0
                 assert dut.data_ready.value == 0
                 dut.stop_txn.value = 0            

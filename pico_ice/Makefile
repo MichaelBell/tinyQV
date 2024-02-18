@@ -2,16 +2,16 @@
 PROJ      = tinyqv
 
 # Files
-FILES = iceFUN.v ledscan.v ../cpu/*.v ../peri/uart/*.v ../peri/spi/*.v
+FILES = pico_ice.v ../cpu/*.v ../peri/uart/*.v ../peri/spi/*.v
 
-.PHONY: iceFUN clean burn
+.PHONY: pico_ice clean burn
 
-iceFUN:
+pico_ice:
 	# Lint
 	#verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-MULTITOP $(FILES)
 
 	# synthesize using Yosys
-	yosys -p "synth_ice40 -abc9 -device hx -top tinyQV_top -json $(PROJ).json" $(FILES) > yosys.log
+	yosys -p "synth_ice40 -abc9 -device u -top tinyQV_top -json $(PROJ).json" $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
 	@grep "   Number of cells" yosys.log
@@ -20,21 +20,22 @@ iceFUN:
 	@echo
 
 	# Place and route using nextpnr
-	nextpnr-ice40 -r --hx8k --json $(PROJ).json --package cb132 --asc $(PROJ).asc --opt-timing --pcf iceFUN.pcf > nextpnr.log 2>& 1
+	nextpnr-ice40 -r --up5k --json $(PROJ).json --package sg48 --asc $(PROJ).asc --opt-timing --pcf pico_ice.pcf > nextpnr.log 2>& 1
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*clk" nextpnr.log | tail -2
+	@grep "Max frequency.*clk" nextpnr.log | tail -1
 	@echo
 
 	# Convert to bitstream using IcePack
 	icepack $(PROJ).asc $(PROJ).bin
+	bin2uf2 -o $(PROJ).uf2 0x00000000 $(PROJ).bin
 
 stats:
 	@grep Warn yosys.log | grep -v tri-state || true
 	@grep Error yosys.log || true
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*clk" nextpnr.log | tail -2
+	@grep "Max frequency.*clk" nextpnr.log | tail -1
 	@echo "| Item | Count |"
 	@echo "| ---- | ----- |"
 	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'
@@ -42,8 +43,5 @@ stats:
 	@grep "     SB_LUT" yosys.log | awk '{printf("| %s | %s |\n", $$1, $$2);}'
 	@grep "     ICESTORM_LC" nextpnr.log | awk '{gsub(/\//, "", $$3);printf("| ICE40 LCs | %s |\n", $$3);}'
 
-burn:
-	iceFUNprog $(PROJ).bin
-
 clean:
-	rm *.asc *.bin *blif
+	rm $(PROJ).asc $(PROJ).bin $(PROJ).json

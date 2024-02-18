@@ -118,7 +118,7 @@ module qspi_controller (
             is_writing <= 0;
             nibbles_remaining <= 0;
             data_ready <= 0;
-            spi_clk_out <= 1;
+            spi_clk_out <= 0;
             spi_data_oe <= 4'b0000;
             spi_flash_select <= 1;
             spi_ram_a_select <= 1;
@@ -146,7 +146,7 @@ module qspi_controller (
                     spi_clk_out <= 0;
                     if (!stall_txn && read_cycles_count < 3'b010) begin
                         data_ready <= !is_writing;
-                        if (delay_cycles_cfg[2:1] == 2'b00) begin
+                        if (is_writing || delay_cycles_cfg[2:1] == 2'b00) begin
                             fsm_state <= FSM_DATA;
                             read_cycles_count <= delay_cycles_cfg;
                         end else begin
@@ -306,17 +306,21 @@ module qspi_controller (
             assert(!spi_clk_out);
 
         // SPI Clock runs while transaction in progress and not stalled
-        if (f_past_valid && busy && fsm_state != FSM_STALLED && $past(fsm_state != FSM_STALLED))
+        if (f_past_valid == 2'b11 && busy && fsm_state != FSM_STALLED && $past(fsm_state != FSM_IDLE && fsm_state != FSM_STALLED))
             assert(spi_clk_out != $past(spi_clk_out));
+
+        // Data doesn't change over rising edge of clock
+        if (f_past_valid && $past(busy) && busy && $past(!spi_clk_out) && spi_clk_out && ($past(spi_data_oe) || spi_data_oe))
+            assert(spi_data_out == $past(spi_data_out));
 
         // Stopping works
         if (f_past_valid && $past(stop_txn && !is_writing)) begin
             assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select == 3);
-            assert(spi_clk_out == 1);
+            assert(spi_clk_out == 0);
         end
         if (f_past_valid && $past(stop_txn && is_writing && spi_clk_out)) begin
             assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select == 3);
-            assert(spi_clk_out == 1);
+            assert(spi_clk_out == 0);
         end
     end
     `endif

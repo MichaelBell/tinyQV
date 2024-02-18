@@ -6,24 +6,6 @@
 `define default_netname none
 
 module tinyQV_top (
-        input clk12MHz,
-        input button1,
-        input button2,
-        input button3,
-        input button4,
-        output led1,
-        output led2,
-        output led3,
-        output led4,
-        output led5,
-        output led6,
-        output led7,
-        output led8,
-        output lcol1,
-        output lcol2,
-        output lcol3,
-        output lcol4,
-        
         input clk,
         input rst_n,
 
@@ -131,7 +113,7 @@ module tinyQV_top (
     always @(*) begin
         case (connect_peripheral)
             PERI_GPIO_OUT:    data_from_read = gpio_out;
-            PERI_GPIO_IN:     data_from_read = {28'h0, button4, button3, button2, button1};
+            PERI_GPIO_IN:     data_from_read = 32'h0;
             PERI_UART:        data_from_read = {24'h0, uart_rx_data};
             PERI_UART_STATUS: data_from_read = {30'h0, uart_rx_valid, uart_tx_busy};
             default:          data_from_read = 32'hFFFF_FFFF;
@@ -155,7 +137,7 @@ module tinyQV_top (
     wire [7:0] uart_rx_data;
     wire uart_tx_start = write_n != 2'b11 && connect_peripheral == PERI_UART;
 
-    uart_tx #(.CLK_HZ(32_000_000), .BIT_RATE(115_200)) i_uart_tx(
+    uart_tx #(.CLK_HZ(8_000_000), .BIT_RATE(115_200)) i_uart_tx(
         .clk(clk),
         .resetn(rst_reg_n),
         .uart_txd(uart_txd),
@@ -164,7 +146,7 @@ module tinyQV_top (
         .uart_tx_busy(uart_tx_busy) 
     );
 
-    uart_rx #(.CLK_HZ(32_000_000), .BIT_RATE(115_200)) i_uart_rx(
+    uart_rx #(.CLK_HZ(8_000_000), .BIT_RATE(115_200)) i_uart_rx(
         .clk(clk),
         .resetn(rst_reg_n),
         .uart_rxd(uart_rxd),
@@ -173,27 +155,5 @@ module tinyQV_top (
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data) 
     );
-
-    // GPIO on LEDs
-    wire [7:0] leds1_7seg = gpio_out[31:24];
-    wire [7:0] leds2_7seg = gpio_out[23:16];
-    wire [7:0] leds3_7seg = gpio_out[15:8];
-    wire [7:0] leds4_7seg = gpio_out[7:0];
-
-    // map the output of ledscan to the port pins
-    wire [7:0] leds_out;
-    wire [3:0] lcol;
-    assign { led8, led7, led6, led5, led4, led3, led2, led1 } = leds_out[7:0];
-    assign { lcol4, lcol3, lcol2, lcol1 } = lcol[3:0];
-
-    LedScan scan (
-                .clk12MHz(clk12MHz),
-                .leds1(leds1_7seg),
-                .leds2(leds2_7seg),
-                .leds3(leds3_7seg),
-                .leds4(leds4_7seg),
-                .leds(leds_out),
-                .lcol(lcol)
-        );    
 
 endmodule

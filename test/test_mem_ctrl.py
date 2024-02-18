@@ -15,7 +15,7 @@ async def start_data_read(dut, len_code, read_follows_read):
     assert dut.spi_flash_select.value == 1
     assert dut.spi_ram_a_select.value == 1
     assert dut.spi_ram_b_select.value == 1
-    assert dut.spi_clk_out.value == 1
+    assert dut.spi_clk_out.value == 0
 
     addr = random.randint(0, (1 << 25) - 1)
     last_select = select
@@ -35,7 +35,7 @@ async def start_data_read(dut, len_code, read_follows_read):
         assert dut.spi_flash_select.value == 1
         assert dut.spi_ram_a_select.value == 1
         assert dut.spi_ram_b_select.value == 1
-        assert dut.spi_clk_out.value == 1   
+        assert dut.spi_clk_out.value == 0
         await ClockCycles(dut.clk, 1, False)     
 
     assert select.value == 0
@@ -96,7 +96,7 @@ async def start_data_write(dut, data, len_code, delay_start):
     assert dut.spi_flash_select.value == 1
     assert dut.spi_ram_a_select.value == 1
     assert dut.spi_ram_b_select.value == 1
-    assert dut.spi_clk_out.value == 1
+    assert dut.spi_clk_out.value == 0
 
     addr = random.randint(1 << 24, (1 << 25) - 1)
     if addr >= 0x1800000:
@@ -113,7 +113,7 @@ async def start_data_write(dut, data, len_code, delay_start):
         assert dut.spi_flash_select.value == 1
         assert dut.spi_ram_a_select.value == 1
         assert dut.spi_ram_b_select.value == 1
-        assert dut.spi_clk_out.value == 1
+        assert dut.spi_clk_out.value == 0
     await ClockCycles(dut.clk, 1, False)
 
     assert select.value == 0
@@ -219,7 +219,7 @@ async def test_data_write(dut):
             await ClockCycles(dut.clk, 1, False)
             if i == 2 * read_len - 1:
                 assert select.value == 1
-                assert dut.spi_clk_out.value == 1
+                assert dut.spi_clk_out.value == 0
                 assert dut.data_ready.value == 1
             else:
                 assert select.value == 0
