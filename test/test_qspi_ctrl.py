@@ -327,9 +327,10 @@ async def test_stop(dut):
                 assert dut.data_ready.value == 0
 
 
+# TODO: This test is mostly nonsense
 @cocotb.test()
 async def test_latency(dut):
-    for latency in range(1, 6):
+    for latency in range(1, 4):
         await reset(dut, latency)
 
         for k in range(3):

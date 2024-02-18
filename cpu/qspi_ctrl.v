@@ -24,12 +24,13 @@
    out of reset to ensure the configuration is not accidentally modified.
    Note that tinyQV's reset is latched on the negative edge of clk, so reset must be 
    released while clock is high.
-   Valid values of latency are 0 - 5:
+   Valid values of latency are 0 - 3:
    - 0: data is ready by the falling edge of the SPI clock immediately following the
            last dummy cycle
    - 1: data is ready by the rising edge of the next SPI clock (this is "normal")
-   - 2-5: read the data delayed by further half SPI clock cycles. 
+   - 2-3: read the data delayed by further half SPI clock cycles. 
 
+    TODO: Get latency >3 working?  Maybe 3 is enough.
     TODO: Should use continuous read mode on the flash
     TODO: Maybe should use QPI command mode on the RAM
 
