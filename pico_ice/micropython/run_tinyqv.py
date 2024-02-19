@@ -2,9 +2,112 @@ import time
 import sys
 import rp2
 import machine
-from machine import UART, Pin, PWM
+from machine import UART, Pin, PWM, SPI
 
 import flash_prog
+
+@rp2.asm_pio(autopush=True, push_thresh=8, in_shiftdir=rp2.PIO.SHIFT_LEFT,
+             autopull=True, pull_thresh=8, out_shiftdir=rp2.PIO.SHIFT_RIGHT,
+             out_init=(rp2.PIO.IN_HIGH, rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH, rp2.PIO.IN_HIGH,
+                       rp2.PIO.IN_HIGH, rp2.PIO.IN_HIGH, rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH),
+             sideset_init=(rp2.PIO.OUT_HIGH))
+def qspi_read():
+    out(x, 8).side(1)
+    out(y, 8).side(1)
+    out(pindirs, 8).side(1)
+    
+    label("cmd_loop")
+    out(pins, 8).side(0)
+    jmp(x_dec, "cmd_loop").side(1)
+    
+    out(pindirs, 8).side(0)
+    label("data_loop")
+    in_(pins, 8).side(1)
+    jmp(y_dec, "data_loop").side(0)
+    
+    out(pins, 8).side(1)
+    out(pindirs, 8).side(1)
+
+@rp2.asm_pio(autopush=True, push_thresh=32, in_shiftdir=rp2.PIO.SHIFT_RIGHT)
+def pio_capture():
+    in_(pins, 8)
+    
+def spi_cmd(spi, data, sel, dummy_len=0, read_len=0):
+    dummy_buf = bytearray(dummy_len)
+    read_buf = bytearray(read_len)
+    
+    sel.off()
+    spi.write(bytearray(data))
+    if dummy_len > 0:
+        spi.readinto(dummy_buf)
+    if read_len > 0:
+        spi.readinto(read_buf)
+    sel.on()
+    
+    return read_buf
+
+def setup_flash():
+    spi = SPI(0, 32_000_000, sck=Pin(2), mosi=Pin(3), miso=Pin(0))
+
+    flash_sel = Pin(1, Pin.OUT)
+    ram_a_sel = Pin(4, Pin.OUT)
+    ram_b_sel = Pin(6, Pin.OUT)
+    
+    # Leave CM mode if in it
+    spi_cmd(spi, [0xFF], flash_sel)
+
+    sm = rp2.StateMachine(0, qspi_read, 16_000_000, in_base=Pin(0), out_base=Pin(0), sideset_base=Pin(2))
+    sm.active(1)
+    
+    # Read 1 byte from address 0 to get into continuous read mode
+    num_bytes = 1
+    buf = bytearray(num_bytes*2 + 4)
+    
+    sm.put(8+6+2-1)     # Command + Address + Dummy - 1
+    sm.put(num_bytes*2 + 4 - 1) # Data + Dummy - 1
+    sm.put(0b11111111)  # Directions
+    
+    sm.put(0b01011000)  # Command
+    sm.put(0b01011000)
+    sm.put(0b01011000)
+    sm.put(0b01010000)
+    sm.put(0b01011000)
+    sm.put(0b01010000)
+    sm.put(0b01011000)
+    sm.put(0b01011000)
+    
+    sm.put(0b01010000)  # Address
+    sm.put(0b01010000)
+    sm.put(0b01010000)
+    sm.put(0b01010000)
+    sm.put(0b01010000)
+    sm.put(0b01010000)
+    sm.put(0b11010001) # SD3, RAM_B_SEL, SD2, RAM_A_SEL, SD0, SCK, CS, SD1
+    sm.put(0b11010001)
+    
+    sm.put(0b01010110)  # Directions
+    
+    for i in range(num_bytes*2 + 4):
+        buf[i] = sm.get()
+        
+    sm.put(0b11111111)
+    sm.put(0b01010110)  # Directions
+    sm.active(0)
+    del sm
+
+def setup_ram():
+    spi = SPI(0, 32_000_000, sck=Pin(2), mosi=Pin(3), miso=Pin(0))
+
+    flash_sel = Pin(1, Pin.OUT)
+    ram_a_sel = Pin(4, Pin.OUT)
+    ram_b_sel = Pin(6, Pin.OUT)
+
+    flash_sel.on()
+    ram_a_sel.on()
+    ram_b_sel.on()
+    
+    for sel in (ram_a_sel, ram_b_sel):
+        spi_cmd(spi, [0x35], sel)
 
 def run(query=True, stop=True):
     machine.freq(128_000_000)
@@ -15,6 +118,9 @@ def run(query=True, stop=True):
     flash_sel = Pin(17, Pin.IN, Pin.PULL_UP)
     ice_creset_b = machine.Pin(27, machine.Pin.OUT)
     ice_creset_b.value(0)
+    
+    setup_flash()
+    setup_ram()
 
     ice_done = machine.Pin(26, machine.Pin.IN)
     time.sleep_us(10)
@@ -74,21 +180,17 @@ def run(query=True, stop=True):
     time.sleep(0.001)
     clk.off()
 
-    @rp2.asm_pio(autopush=True, push_thresh=32, in_shiftdir=rp2.PIO.SHIFT_RIGHT)
-    def pio_capture():
-        in_(pins, 8)
-        
-    sm = rp2.StateMachine(0, pio_capture, 32_000_000, in_base=Pin(0))
+    sm = rp2.StateMachine(1, pio_capture, 32_000_000, in_base=Pin(0))
 
-    capture_len=4096
+    capture_len=1024
     buf = bytearray(capture_len)
 
     rx_dma = rp2.DMA()
-    c = rx_dma.pack_ctrl(inc_read=False, treq_sel=4) # Read using the SM0 RX DREQ
+    c = rx_dma.pack_ctrl(inc_read=False, treq_sel=5) # Read using the SM0 RX DREQ
     sm.restart()
-    sm.exec("wait(%d, gpio, %d)" % (0, 1))
+    sm.exec("wait(%d, gpio, %d)" % (0, 4))
     rx_dma.config(
-        read=0x5020_0020,        # Read from the SM0 RX FIFO
+        read=0x5020_0024,        # Read from the SM1 RX FIFO
         write=buf,
         ctrl=c,
         count=capture_len//4,
@@ -106,6 +208,9 @@ def run(query=True, stop=True):
     # Wait for DMA to complete
     while rx_dma.active():
         time.sleep_ms(1)
+        
+    sm.active(0)
+    del sm
 
     if not stop:
         return

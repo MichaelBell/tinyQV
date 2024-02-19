@@ -1,18 +1,18 @@
 # Tiny-QV: A Risc-V SoC for Tiny Tapeout <!-- omit in toc -->
 
-Idea is to implement a 4 bit at a time RV32 processor, similar to [nanoV](https://github.com/MichaelBell/nanoV) but optimized for QSPI RAM and Flash instead of SPI FRAM.
+A 4 bit at a time RV32 processor, similar to [nanoV](https://github.com/MichaelBell/nanoV) but optimized for QSPI RAM and Flash instead of SPI FRAM.
 
-Aim will be to fit in a 2x2 tile size.  Guiding principle is fast as practical on Tiny Tapeout while minimizing area.
+The aim of this design is to make a small microcontroller that is as fast as practical given the Tiny Tapeout constraints, and sticking to a 2x2 tile size.
 
-## Design goals
+## Overview
 
-RV32EC (maybe some partial support for M?)
+RV32EC + a 32x16-bit multiplier
 
-Basic interrupt support
+Basic interrupt support  (not yet implemented)
 
-QSPI flash/memory interface, don't think it is worth dedicating the pins to allow two completely separate interfaces (potentially makes load/store to RAM much faster, but adds complexity and we run out of outputs).
+QSPI flash/memory interface.  This uses a shared bus as I didn't think it was worth dedicating the pins to allow two completely separate interfaces (that would make load/store to RAM much faster, but adds complexity and we run out of outputs).
 
-Peripherals so it can do basic microcontroller things, currently thinking 1 UART and 1 SPI master, plus some GPIOs.
+Peripherals so it can do basic microcontroller things, currently 1 UART and 1 SPI master, plus some GPIOs.
 
 ### QPSI PMOD
 
@@ -32,9 +32,9 @@ The pinout for the PMOD is
 
 ### Performance
 
-Core should be timed to run at up to 100MHz, QSPI at 50MHz
+STA should pass at 100MHz on sky130.  But it is likely not to actually work that fast due to the slow TT outputs.  The intended clock speed for the design is 64MHz - QSPI at 32MHz.
 
-Should be able to execute 1 cycle 16-bit instructions at one instruction every 8 cycles (up to ~12MHz), shifts and 32-bit instructions (other than branches and stores) every 16 cycles (up to ~6MHz)
+Should be able to execute 1 cycle 16-bit instructions at one instruction every 8 cycles (at ~8MHz), shifts and 32-bit instructions (other than branches and stores) every 16 cycles (~4MHz).
 
 ## Risc-V details
 
@@ -55,13 +55,13 @@ Would be nice to implement WFI
 No need for MRET - only M mode is supported so the trap handler can simply jump to mepc+4
 
 CSRs:
-- CYCLE - will provide a 32 (or possibly 24) bit cycle counter
-- TIME - will return CYCLE - or could we have a programmable divider?
-- INSTRET - would be nice to provide this
+- CYCLE - a 32 bit cycle counter, counts at clock/8 (once per possible instruction)
+- TIME - returns CYCLE/8, so microseconds if clocked at 64MHz.
+- INSTRET - is implemented
 - (MSTATUS - probably not bother)
 - MISA - read only
-- (MTVEC - probably not bother, or read only, hardcode to 0.)
-- MIE & MIP - yes, but custom interrupts only - MSI/MTI/MEI probably not implemented as the spec'd behaviour is a bit odd.  Custom interrupts:
+- (MTVEC - TBD)
+- MIE & MIP - TBI, intend custom interrupts only - MSI/MTI/MEI probably not implemented as the spec'd behaviour is a bit odd.  Custom interrupts:
 ```
     16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
 	17 - triggered on rising edge of in1 (cleared by clearing bit in MIP)
@@ -73,11 +73,11 @@ CSRs:
 
 ## QSPI memory interface
 
-Use flash in continuous read mode.  Writes to flash not supported.  On boot will enter continuous read mode once when reading the instruction at address 0.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.
+Use flash in continuous read mode.  Writes to flash not supported.  TinyQV expects the flash to be in continuous read mode when the core is started.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.
 
 In continuous read mode a QSPI read can be initiated with a 12 cycle preamble (6 cycles for the 24-bit address, 2 cycles for the mode, 4 dummy cycles).
 
-Use the PSRAM in QPI mode.  Enter quad mode on each RAM immediately after reset (this should be safely ignored if they are already in quad mode).
+Use the PSRAM in QPI mode.  TinyQV expects the PSRAM to be in QPI mode when the core is started.  
 Writes have no delay cycles so 8 cycles + data (16 cycles total for a 32-bit write).
 Use Fast Read (0Bh) for reads, (note 66MHz limit).  Gives 12 cycles preamble for read, 20 cycles total for a 32-bit read.
 
@@ -118,9 +118,9 @@ out7 - GPIO
 
 ## Peripherals
 
-Probably stick to the same UART as in nanoV, maybe configured for 115200 when running at 66MHz?  Not loads of point in extra buffering as could only afford another byte or two and you normally printf a bunch of chars together.
+Using the same UART as in nanoV, configured for 115200 when running at 64MHz.  Not loads of point in extra buffering as could only afford another byte or two and you normally printf a bunch of chars together.
 
-SPI is new.  Find/write a simple controller.  Target is to make using the ST7789 screen reasonably painless - maybe could support D/C toggling?  Maybe 1 extra byte of buffer (make it configurable), mostly as a proof of concept.
+Simple SPI controller is implemted.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
 
 ## FPGA testing
 

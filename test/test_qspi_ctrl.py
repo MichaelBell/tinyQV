@@ -4,6 +4,8 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
+select = None
+
 async def start_read(dut):
     global select
 
@@ -32,22 +34,24 @@ async def start_read(dut):
     assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
     assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
     assert dut.spi_clk_out.value == 0
-    assert dut.spi_data_oe.value == 1
 
-    # Command
-    cmd = 0xEB
-    for i in range(8):
-        await ClockCycles(dut.clk, 1, False)
-        assert select.value == 0
-        assert dut.spi_clk_out.value == 1
-        assert dut.spi_data_out.value == (1 if cmd & 0x80 else 0)
-        assert dut.spi_data_oe.value == 1
-        cmd <<= 1
-        await ClockCycles(dut.clk, 1, False)
-        assert select.value == 0
-        assert dut.spi_clk_out.value == 0
+    if dut.spi_flash_select != select:
+        # Command
+        cmd = 0x0B
+        assert dut.spi_data_oe.value == 0xF
+        for i in range(2):
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 1
+            assert dut.spi_data_out.value == (cmd & 0xF0) >> 4
+            assert dut.spi_data_oe.value == 0xF
+            cmd <<= 4
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 0
 
     # Address
+    assert dut.spi_data_oe.value == 0xF
     for i in range(6):
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
@@ -59,15 +63,16 @@ async def start_read(dut):
         assert dut.spi_clk_out.value == 0
 
     # Dummy
-    for i in range(2):
-        await ClockCycles(dut.clk, 1, False)
-        assert select.value == 0
-        assert dut.spi_clk_out.value == 1
-        assert dut.spi_data_oe.value == 0xF
-        assert dut.spi_data_out.value == 0xF
-        await ClockCycles(dut.clk, 1, False)
-        assert select.value == 0
-        assert dut.spi_clk_out.value == 0
+    if dut.spi_flash_select == select:
+        for i in range(2):
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 1
+            assert dut.spi_data_oe.value == 0xF
+            assert dut.spi_data_out.value == 0xA
+            await ClockCycles(dut.clk, 1, False)
+            assert select.value == 0
+            assert dut.spi_clk_out.value == 0
 
     for i in range(4):
         await ClockCycles(dut.clk, 1, False)
@@ -105,17 +110,17 @@ async def start_write(dut, data):
     assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
     assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
     assert dut.spi_clk_out.value == 0
-    assert dut.spi_data_oe.value == 1
+    assert dut.spi_data_oe.value == 0xF
 
     # Command
-    cmd = 0x38
-    for i in range(8):
+    cmd = 0x02
+    for i in range(2):
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
         assert dut.spi_clk_out.value == 1
-        assert dut.spi_data_out.value == (1 if cmd & 0x80 else 0)
-        assert dut.spi_data_oe.value == 1
-        cmd <<= 1
+        assert dut.spi_data_out.value == (cmd & 0xF0) >> 4
+        assert dut.spi_data_oe.value == 0xF
+        cmd <<= 4
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
         assert dut.spi_clk_out.value == 0

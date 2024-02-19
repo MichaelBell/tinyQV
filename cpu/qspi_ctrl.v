@@ -31,8 +31,6 @@
    - 2-3: read the data delayed by further half SPI clock cycles. 
 
     TODO: Get latency >3 working?  Maybe 3 is enough.
-    TODO: Should use continuous read mode on the flash
-    TODO: Maybe should use QPI command mode on the RAM
 
    */
 module qspi_controller (
@@ -41,7 +39,7 @@ module qspi_controller (
 
     // External SPI interface
     input      [3:0] spi_data_in,
-    output     [3:0] spi_data_out,
+    output reg [3:0] spi_data_out,
     output reg [3:0] spi_data_oe,
     output reg       spi_clk_out,
 
@@ -86,7 +84,7 @@ module qspi_controller (
     reg       is_writing;
     reg [ADDR_BITS-1:0]       addr;
     reg [DATA_WIDTH_BITS-1:0] data;
-    reg [$clog2(`max(DATA_WIDTH_BITS,`max(ADDR_BITS,31)))-3:0] nibbles_remaining;
+    reg [2:0] nibbles_remaining;
     reg [2:0] delay_cycles_cfg;
     reg [3:0] spi_in_buffer;
 
@@ -130,10 +128,10 @@ module qspi_controller (
             data_req <= 0;
             if (fsm_state == FSM_IDLE) begin
                 if ((start_read || start_write) && !ram_a_block && !ram_b_block) begin
-                    fsm_state <= FSM_CMD;
+                    fsm_state <= addr_in[24] ? FSM_CMD : FSM_ADDR;
                     is_writing <= !start_read && addr_in[24];  // Only writes to RAM supported.
-                    nibbles_remaining <= 8-1;
-                    spi_data_oe <= 4'b0001;
+                    nibbles_remaining <= addr_in[24] ? 2-1 : 6-1;
+                    spi_data_oe <= 4'b1111;
                     spi_clk_out <= 0;
                     spi_flash_select <= addr_in[24];
                     spi_ram_a_select <= addr_in[24:23] != 2'b10;
@@ -174,13 +172,16 @@ module qspi_controller (
                                 fsm_state <= fsm_state + 1;
                                 if (fsm_state == FSM_CMD) begin
                                     nibbles_remaining <= (ADDR_BITS >> 2)-1;
-                                    spi_data_oe <= 4'b1111;
                                 end
                                 else if (fsm_state == FSM_ADDR) begin
                                     if (is_writing) begin
                                         fsm_state <= FSM_DATA;
-                                        spi_data_oe <= 4'b1111;
                                         nibbles_remaining <= (DATA_WIDTH_BITS >> 2)-1;
+                                    end else if (spi_flash_select) begin
+                                        // On RAM, skip DUMMY1.
+                                        fsm_state <= FSM_DUMMY2;
+                                        spi_data_oe <= 4'b0000;
+                                        nibbles_remaining <= 4-1;
                                     end else begin
                                         nibbles_remaining <= 2-1;
                                     end
@@ -233,10 +234,29 @@ module qspi_controller (
         end
     end
 
-    assign spi_data_out = fsm_state == FSM_CMD  ? {3'b000, is_writing ? (nibbles_remaining == 5 || nibbles_remaining == 4 || nibbles_remaining == 3) : !(nibbles_remaining == 4 || nibbles_remaining == 2)} :
-                          fsm_state == FSM_ADDR ? addr[ADDR_BITS-1:ADDR_BITS-4] :
-                          fsm_state == FSM_DATA ? data[DATA_WIDTH_BITS-1:DATA_WIDTH_BITS-4] :
-                                                  4'b1111;
+    always @(*) begin
+        case (fsm_state)
+            FSM_CMD: begin // CMD only used for the PSRAM, the flash is always in continuous read mode
+                if (is_writing) begin
+                    // RAM Write command is 02h
+                    if (nibbles_remaining[0])
+                        spi_data_out = 4'b0000;
+                    else
+                        spi_data_out = 4'b0010;
+                end else begin
+                    // RAM Read command is 0Bh
+                    if (nibbles_remaining[0])
+                        spi_data_out = 4'b0000;
+                    else
+                        spi_data_out = 4'b1011;
+                end
+            end
+            FSM_ADDR:   spi_data_out = addr[ADDR_BITS-1:ADDR_BITS-4];
+            FSM_DUMMY1: spi_data_out = 4'b1010;
+            FSM_DATA:   spi_data_out = data[DATA_WIDTH_BITS-1:DATA_WIDTH_BITS-4];
+            default:    spi_data_out = 4'b1010;
+        endcase
+    end
 
     // Allow 2 cycles before reselecting the same RAM
     reg last_ram_a_sel;
