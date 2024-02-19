@@ -50,7 +50,9 @@ def program(filename):
     CMD_WEN = 0x06
     CMD_SECTOR_ERASE = 0x20
     CMD_ID  = 0x90
+    CMD_LEAVE_CM = 0xFF
 
+    flash_cmd([CMD_LEAVE_CM])
     id = flash_cmd([CMD_ID], 2, 3)
     print_bytes(id)
 
