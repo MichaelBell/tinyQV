@@ -10,4 +10,4 @@ read -formal qspi_ctrl.v
 prep -top qspi_controller
 
 [files]
-qspi_ctrl.v
+../cpu/qspi_ctrl.v

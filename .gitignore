@@ -5,7 +5,7 @@
 *.uf2
 tinyqv.json
 
-cpu/sby/
+verify/sby/
 test/__pycache__/
 test/*.vcd
 test/*results.xml

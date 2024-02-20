@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 20
+
+[engines]
+smtbmc
+
+[script]
+read -formal alu_verify.sv alu.v
+prep -top alu_verify
+
+[files]
+../cpu/alu.v
+alu_verify.sv

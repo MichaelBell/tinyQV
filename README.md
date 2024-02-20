@@ -40,7 +40,7 @@ Should be able to execute 1 cycle 16-bit instructions at one instruction every 8
 
 Fullish RV32EC, with a few exceptions:
 - Addresses are 28-bits
-- gp is hardcoded to 0x1000400, tp is hardcoded to 0x8000000.  Peripherals will have addresses in the 2K above tp, so it can be used for fast access.  gp can be used for fast access to data at the bottom of flash.
+- gp is hardcoded to 0x1000400, tp is hardcoded to 0x8000000.  Peripherals will have addresses in the 2K above tp, so it can be used for fast access.  gp can be used for fast access to data at the bottom of RAM.
 
 Only M mode is supported.
 
