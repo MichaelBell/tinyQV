@@ -32,7 +32,7 @@ The pinout for the PMOD is
 
 ### Performance
 
-STA should pass at 100MHz on sky130.  But it is likely not to actually work that fast due to the slow TT outputs.  The intended clock speed for the design is 64MHz - QSPI at 32MHz.
+STA should pass at 100MHz on sky130.  But it is likely not to actually work that fast due to the slow TT outputs.  The intended clock speed for the design is 64MHz, which runs the QSPI at 32MHz.
 
 Should be able to execute 1 cycle 16-bit instructions at one instruction every 8 cycles (at ~8MHz), shifts and 32-bit instructions (other than branches and stores) every 16 cycles (~4MHz).
 
@@ -52,24 +52,24 @@ Will not bother trying to detect and correctly handle all traps/illegal/unsuppor
 
 Would be nice to implement WFI
 
-No need for MRET - only M mode is supported so the trap handler can simply jump to mepc+4
+MRET is required to return from trap and interrupt handlers
 
 CSRs:
 - CYCLE - a 32 bit cycle counter, counts at clock/8 (once per possible instruction)
-- TIME - returns CYCLE/8, so microseconds if clocked at 64MHz.
+- TIME - returns CYCLE/8, so microseconds if clocked at 64MHz, wrapping at 2^29.
 - INSTRET - is implemented
-- (MSTATUS - probably not bother)
+- MSTATUS - Only MIE and MPIE implemented (TBI)
 - MISA - read only
-- (MTVEC - TBD)
-- MIE & MIP - TBI, intend custom interrupts only - MSI/MTI/MEI probably not implemented as the spec'd behaviour is a bit odd.  Custom interrupts:
+- MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8 (TBI)
+- MIE & MIP - TBI, intend custom interrupts only to give granularity, might implement MTI if there's room for a timer.  Custom interrupts:
 ```
     16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
 	17 - triggered on rising edge of in1 (cleared by clearing bit in MIP)
 	18 - UART byte available  (cleared by reading byte from UART)
-	19 - Maybe a timer if we get that far?
+	19 - UART writeable  (cleared by writing byte to UART)
 ```
 
-- MEPC & MCAUSE - required for interrupt handling.  At boot execution starts at address 0 with cause 0.
+- MEPC & MCAUSE - required for trap and interrupt handling.  At boot execution starts at address 0 with cause 0.
 
 ## QSPI memory interface
 
