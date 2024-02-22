@@ -1,6 +1,6 @@
 [options]
 mode bmc
-depth 60
+depth 65
 
 [engines]
 abc bmc3
