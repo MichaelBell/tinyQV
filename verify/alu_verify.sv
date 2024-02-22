@@ -37,6 +37,8 @@ module alu_verify (
 
     wire cy_in = (counter == 0) ? (op[1] || op[3]) : cy;
     wire cmp_in = (counter == 0) ? 1'b1 : cmp;
+    wire cy_out;
+    wire cmp_out;
     wire [3:0] d_out;
     tinyqv_alu i_alu(
         op,
@@ -51,7 +53,7 @@ module alu_verify (
 
     reg f_past_valid = 0;
     always @(posedge clk) begin
-        f_past_valid <= {f_past_valid[0], 1'b1};
+        f_past_valid <= 1;
 
         // inputs only change when count 0
         if (counter != 0) begin

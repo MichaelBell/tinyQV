@@ -13,7 +13,7 @@
 
    To start writing:
    - Set addr_in, data_in and set start_write high for 1 cycle
-   - Update data_in each cycle data_req goes high to continue writing,
+   - Update data_in each cycle data_req goes high to continue writing, on the cycle data_req is high.
    - if data is not ready the clock can be temporarily stalled with stall_txn,
    - Or set stop_txn high to cancel the write.
 
@@ -279,8 +279,12 @@ module qspi_controller (
     // register for knowing if we have just started
     reg [1:0] f_past_valid = 2'b00;
     reg f_reset_done = 0;
+    wire f_any_select = spi_flash_select & spi_ram_a_select & spi_ram_b_select;
     // start in reset
     initial assume(!rstn);
+    initial assume(spi_flash_select);
+    initial assume(spi_ram_a_select);
+    initial assume(spi_ram_b_select);
     always @(posedge clk) begin
         // update past_valid reg so we know it's safe to use $past()
         f_past_valid <= {f_past_valid[0], 1'b1};
@@ -343,6 +347,94 @@ module qspi_controller (
             assert(spi_flash_select + spi_ram_a_select + spi_ram_b_select == 3);
             assert(spi_clk_out == 0);
         end
+
+        if (!f_any_select) begin
+            // Address can't change while selected
+            assume(addr_in == $past(addr_in));
+
+            // Data can only change when requested
+            if (!data_req) assume(data_in == $past(data_in));
+
+            // Data in can only change the correct number of cycles after a falling edge of clock
+            assume(delay_cycles_cfg <= 3);
+            if ((delay_cycles_cfg == 0 && !($past(spi_clk_out) && !spi_clk_out)) ||
+                (delay_cycles_cfg == 1 && !($past(spi_clk_out, 2) && !$past(spi_clk_out))) ||
+                (delay_cycles_cfg == 2 && !($past(spi_clk_out, 3) && !$past(spi_clk_out, 2))) ||
+                (delay_cycles_cfg == 3 && !($past(spi_clk_out, 4) && !$past(spi_clk_out, 3))) ||
+                (delay_cycles_cfg == 4 && !($past(spi_clk_out, 5) && !$past(spi_clk_out, 4))) ||
+                (delay_cycles_cfg == 5 && !($past(spi_clk_out, 6) && !$past(spi_clk_out, 5))))
+                    assume($past(spi_data_in) == $past(spi_data_in, 2));
+            else
+                assume($past(spi_data_in) != $past(spi_data_in, 2));
+        end
+    end
+
+    reg [5:0] f_counter = 0;
+    reg [3:0] f_rcv_data [0:31];
+    reg [5:0] f_rcv_index;
+    wire [5:0] f_address_offset = spi_flash_select ? 2 : 0;
+    reg f_ever_stalled = 0;
+    always @(posedge clk) begin
+        if (f_any_select) begin
+            f_counter <= 0;
+            f_rcv_index <= 12;
+        end else if ($past(!spi_clk_out) && spi_clk_out) begin
+            f_counter <= f_counter + 1;
+            
+            if (f_counter < 8 || is_writing) assert(spi_data_oe == 4'hF);
+            else assert(spi_data_oe == 4'h0);
+
+            // Verify command
+            if (spi_flash_select) begin
+                if (is_writing) begin
+                    if (f_counter == 0) assert(spi_data_out == 4'h0);
+                    if (f_counter == 1) assert(spi_data_out == 4'h2);
+                end else begin
+                    if (f_counter == 0) assert(spi_data_out == 4'h0);
+                    if (f_counter == 1) assert(spi_data_out == 4'hB);
+                end
+            end
+
+            // Verify address
+            if (f_counter - f_address_offset == 0) assert(spi_data_out == addr_in[23:20]);
+            if (f_counter - f_address_offset == 1) assert(spi_data_out == addr_in[19:16]);
+            if (f_counter - f_address_offset == 2) assert(spi_data_out == addr_in[15:12]);
+            if (f_counter - f_address_offset == 3) assert(spi_data_out == addr_in[11: 8]);
+            if (f_counter - f_address_offset == 4) assert(spi_data_out == addr_in[ 7: 4]);
+            if (f_counter - f_address_offset == 5) assert(spi_data_out == addr_in[ 3: 0]);
+
+            if (f_counter > f_address_offset && f_counter - f_address_offset >= 6) begin
+                if (is_writing) begin
+                    // Verify written data
+                    if (f_counter[0]) assert(spi_data_out == $past(data_in[3:0]));
+                    else assert(spi_data_out == data_in[7:4]);
+                end else begin
+                    // Verify continuation mode
+                    if (f_counter < 8) assert(spi_data_out == 4'hA);
+                end
+            end
+        end
+
+        // Record data
+        if (delay_cycles_cfg == 0) f_rcv_data[f_counter] <= $past(spi_data_in);
+        else if (delay_cycles_cfg == 1) f_rcv_data[$past(f_counter, 1)] <= $past(spi_data_in);
+        else if (delay_cycles_cfg == 2) f_rcv_data[$past(f_counter, 2)] <= $past(spi_data_in);
+        else if (delay_cycles_cfg == 3) f_rcv_data[$past(f_counter, 3)] <= $past(spi_data_in);
+        else if (delay_cycles_cfg == 4) f_rcv_data[$past(f_counter, 4)] <= $past(spi_data_in);
+        else if (delay_cycles_cfg == 5) f_rcv_data[$past(f_counter, 5)] <= $past(spi_data_in);
+
+        if (f_past_valid && data_ready) begin
+            assert(data_out[7:4] == f_rcv_data[f_rcv_index]);
+            assert(data_out[3:0] == f_rcv_data[f_rcv_index+1]);
+            f_rcv_index <= f_rcv_index + 2;
+        end
+
+        /* Stall testing
+        if (f_past_valid && f_rcv_index > 16 && stall_txn && $past(stall_txn) && $past(stall_txn, 2) && $past(stall_txn, 3) && $past(data_ready, 6))
+            f_ever_stalled <= 1;
+
+        cover(f_past_valid && f_ever_stalled && data_ready && $past(data_ready, 4) && f_rcv_index > 20);
+        */
     end
     `endif
 

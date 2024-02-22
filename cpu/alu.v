@@ -98,7 +98,7 @@ module tinyqv_mul #(parameter B_BITS=16) (
 );
 
     reg [B_BITS-1:0] accum;
-    wire [B_BITS+3:0] next_accum = {4'b0, accum} + {16'd0,a} * {4'd0,b};
+    wire [B_BITS+3:0] next_accum = {4'b0, accum} + {{B_BITS{1'b0}}, a} * {4'd0, b};
 
     always @(posedge clk) begin
         accum <= (a != 4'b0000) ? next_accum[B_BITS+3:4] : {4'b0000, accum[B_BITS-1:4]};

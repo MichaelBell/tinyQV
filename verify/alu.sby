@@ -1,14 +1,38 @@
+[tasks]
+alu simple
+shift simple
+mul
+
 [options]
-mode bmc
+simple: 
+mode prove
+depth 10
+
+mul: 
+mode prove
 depth 20
+--
 
 [engines]
-smtbmc
+smtbmc boolector
 
 [script]
+alu:
 read -formal alu_verify.sv alu.v
 prep -top alu_verify
 
+shift:
+read -formal shift_verify.sv alu.v
+prep -top shift_verify
+
+mul:
+read -define B_BITS=8
+read -formal mul_verify.sv alu.v
+prep -top mul_verify
+--
+
 [files]
 ../cpu/alu.v
-alu_verify.sv
+alu: alu_verify.sv
+shift: shift_verify.sv
+mul: mul_verify.sv

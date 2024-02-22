@@ -3,7 +3,8 @@ mode bmc
 depth 60
 
 [engines]
-smtbmc
+abc bmc3
+#smtbmc
 
 [script]
 read -formal qspi_ctrl.v
