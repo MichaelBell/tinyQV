@@ -355,19 +355,35 @@ async def test_trap(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x4
     dut.pc.value = 0x4
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mcause).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mcause).encode())
     assert await get_reg_value(dut, x1) == 11
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mepc).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mepc).encode())
     assert await get_reg_value(dut, x1) == 0x8
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
+    assert await get_reg_value(dut, x1) == 0x80
+    await send_instr(dut, InstructionMRET().encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x8
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
+    assert await get_reg_value(dut, x1) == 0x88
 
     dut.pc.value = 0x723456
     await send_instr(dut, 0x00100073)   # InstructionEBREAK().encode()
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x4
-    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.mcause).encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
     assert await get_reg_value(dut, x2) == 3
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mepc).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
+    assert await get_reg_value(dut, x1) == 0x80
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mepc).encode())
     assert await get_reg_value(dut, x1) == 0x723456
+    await send_instr(dut, InstructionADDI(x1, x1, 0x114).encode())
+    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mepc).encode())
+    await send_instr(dut, InstructionMRET().encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x723456 + 0x114
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
+    assert await get_reg_value(dut, x1) == 0x88
 
 @cocotb.test()
 async def test_shift(dut):

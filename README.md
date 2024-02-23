@@ -50,17 +50,15 @@ Hardcoding gp and tp - it doesn't seem to have caused any trouble in running gen
 
 Will not bother trying to detect and correctly handle all traps/illegal/unsupported instructions, for area saving.  Not aiming for full compliance.
 
-Would be nice to implement WFI
-
 MRET is required to return from trap and interrupt handlers
 
 CSRs:
 - CYCLE - a 32 bit cycle counter, counts at clock/8 (once per possible instruction)
 - TIME - returns CYCLE/8, so microseconds if clocked at 64MHz, wrapping at 2^29.
 - INSTRET - is implemented
-- MSTATUS - Only MIE and MPIE implemented (TBI)
+- MSTATUS - Only MIE and MPIE implemented
 - MISA - read only
-- MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8 (TBI)
+- MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8
 - MIE & MIP - TBI, intend custom interrupts only to give granularity, might implement MTI if there's room for a timer.  Custom interrupts:
 ```
     16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
@@ -70,6 +68,8 @@ CSRs:
 ```
 
 - MEPC & MCAUSE - required for trap and interrupt handling.  At boot execution starts at address 0 with cause 0.
+
+Immediate forms of CSR instructions are not implemented.  MEPC can only be written with CSRRW.
 
 ## QSPI memory interface
 

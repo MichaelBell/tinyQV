@@ -97,6 +97,7 @@ async def start(dut):
     dut.rstn.value = 1
     await ClockCycles(dut.clk, 1)
     dut.rstn.value = 0
+    dut.interrupt_req.value = 0
     await ClockCycles(dut.clk, 2)
     dut.instr_fetch_started.value = 0
     dut.instr_fetch_stopped.value = 0
@@ -268,16 +269,76 @@ async def test_branch(dut):
 async def test_csr(dut):
     await start(dut)
 
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.cycle - 0x1000).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.cycle - 0x1000).encode())
     assert await read_reg(dut, x1, False) == 3
-    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.cycle - 0x1000).encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.cycle - 0x1000).encode())
     assert await read_reg(dut, x2, False) == 9
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.instret - 0x1000).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.instret - 0x1000).encode())
     assert await read_reg(dut, x1, False) == 4
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.instret - 0x1000).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.instret - 0x1000).encode())
     assert await read_reg(dut, x1, False) == 6
-    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.cycle - 0x1000).encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.cycle - 0x1000).encode())
     assert await read_reg(dut, x2, False) == 27
-    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.misa).encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.misa).encode())
     assert await read_reg(dut, x1, False) == 0x40000014
 
+@cocotb.test()
+async def test_interrupt(dut):
+    await start(dut)
+
+    # Jump to a different address
+    await send_instr(dut, InstructionJAL(x0, 0x100).encode())
+    await expect_branch(dut, 0x100)
+
+    # Assert interrupt, this should latch but no interrupt yet
+    dut.interrupt_req.value = 1
+    await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    dut.interrupt_req.value = 0
+    assert await read_reg(dut, x2, False) == 0x10000
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0x10000
+    await send_instr(dut, InstructionLUI(x1, 0x10).encode())
+
+    # Enable the interrupt, it immediately fires
+    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mie).encode())
+    await expect_branch(dut, 0x8)
+
+    # Interrupts now disabled
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x80
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mepc).encode())
+    assert await read_reg(dut, x2, False) == 0x11C
+
+    # Ack the interrupt
+    await send_instr(dut, InstructionCSRRC(x0, x1, csrnames.mip).encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0
+    await send_instr(dut, InstructionMRET().encode())
+    await expect_branch(dut, 0x11C)
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x88
+
+    # Raise a persistent interrupt
+    dut.interrupt_req.value = 4
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0x40000
+    dut.interrupt_req.value = 0
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0
+
+    dut.interrupt_req.value = 4
+    await send_instr(dut, InstructionLUI(x1, 0x40).encode())
+    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mie).encode())
+    await expect_branch(dut, 0x8)
+
+    # Interrupts now disabled
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x80
+
+    # Clear the interrupt
+    dut.interrupt_req.value = 0
+    await send_instr(dut, InstructionMRET().encode())
+    await expect_branch(dut, 0x13C)
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x88

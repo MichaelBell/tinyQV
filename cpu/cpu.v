@@ -16,7 +16,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input  [15:0] instr_data_in,
     input         instr_ready,
 
-    //input         interrupt,
+    input  [3:0]  interrupt_req,
 
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
@@ -218,7 +218,12 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
-    wire interrupt_core = 1'b0; // TODO
+    wire interrupt_pending;
+    reg interrupt_core;
+    always @(posedge clk) begin
+        if (instr_complete_core)
+            interrupt_core <= interrupt_pending;
+    end
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
@@ -257,7 +262,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         addr_out,
         address_ready,
         instr_complete_core,
-        branch
+        branch,
+
+        interrupt_req,
+        interrupt_pending
         );
 
     /////// Instruction fetch ///////

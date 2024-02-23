@@ -41,7 +41,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output address_ready,   // The addr_out holds the address for the active load/store instruction
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
                             // If no new instruction is available all a NOOP should be issued, which will complete in 1 cycle.
-    output branch           // addr_out holds the address to branch to
+    output branch,          // addr_out holds the address to branch to
+
+    input [3:0] interrupt_req,
+    output interrupt_pending
 );
 
     ///////// Register file /////////
@@ -153,19 +156,17 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else if (is_jal || is_jalr) begin
             wr_en = 1;
             data_rd = next_pc;
-        end else if (is_system) begin
-            if (alu_op[1:0] != 2'b00) begin
-                // CSR read
-                wr_en = 1;
-                data_rd = csr_read;
-            end
+        end else if (is_csr) begin
+            // CSR read
+            wr_en = 1;
+            data_rd = csr_read;
         end
     end
 
 
     ///////// Branching /////////
 
-    assign branch = last_count && ((is_jal || is_jalr || is_trap || is_interrupt) || (cycle == 1 && is_branch));
+    assign branch = last_count && ((is_jal || is_jalr || is_trap || is_interrupt || is_mret) || (cycle == 1 && is_branch));
     wire take_branch = last_count && (cmp_out ^ mem_op[0]);
 
 
@@ -218,8 +219,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             tmp_data_in = data_rs1;
         else if (is_mul)
             tmp_data_in = data_rs2;
-        else if (is_trap)
-            tmp_data_in = (counter == 0) ? 4'b0100 : 4'b0000;
+        else if (is_exception)
+            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap, 2'b00} : 4'b0000;
         else if (cycle == 0 || is_branch)
             tmp_data_in = alu_out;
         else
@@ -234,7 +235,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             tmp_data <= {tmp_data_in, tmp_data[31:4]};
     end
 
-    assign addr_out = tmp_data[31:4];
+    assign addr_out = is_mret ? {4'b0000, mepc} : tmp_data[31:4];
 
     always @(*) begin
         data_out = data_rs2;
@@ -272,9 +273,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     );
 
 
-    ///////// Traps /////////    
+    ///////// Traps and interrupts /////////    
 
-    wire is_trap = is_system && (alu_op[2:0] == 3'b000);
+    wire is_priv = is_system && (alu_op[2:0] == 3'b000);
+    wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
+    wire is_exception = is_trap || is_interrupt;
+    wire is_mret = is_priv && (imm_lo[9:8] == 2'b11);
     reg [5:0] mcause;
     always @(posedge clk) begin
         if (!rstn) mcause <= 0;
@@ -292,22 +296,89 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [23:0] mepc;
     always @(posedge clk) begin
         if (counter <= 5) begin
-            mepc <= {(!rstn) ?                   4'b0000 :
-                     (is_interrupt || is_trap) ? pc : 
-                                                 mepc[3:0], mepc[23:4]};
+            mepc[23:20] <= (!rstn)                             ? 4'b0000 :
+                           (is_exception)                      ? pc : 
+                           (is_csr_write && imm_lo == 12'h341) ? data_rs1 :
+                                                                 mepc[3:0];
+            mepc[19:0] <= mepc[23:4];
         end
     end
 
+    reg mstatus_mie;   // Interrupt enable
+    reg mstatus_mpie;  // Prior interrupt enable (whether interrupts were enabled on entry to trap)
+    always @(posedge clk) begin
+        if (!rstn) begin
+            mstatus_mie <= 1;
+            mstatus_mpie <= 0;
+        end else if (counter == 0 && (is_exception)) begin
+            mstatus_mpie <= mstatus_mie;
+            mstatus_mie <= 0;
+        end else if (is_mret) begin
+            mstatus_mie <= mstatus_mpie;
+        end else if (imm_lo == 12'h300) begin
+            if (counter == 0) begin
+                if (is_csr_write) mstatus_mie <= data_rs1[3];
+                else if (is_csr_set && data_rs1[3]) mstatus_mie <= 1;
+                else if (is_csr_clear && data_rs1[3]) mstatus_mie <= 0;
+            end else if (counter == 1) begin
+                if (is_csr_write) mstatus_mpie <= data_rs1[3];
+                else if (is_csr_set && data_rs1[3]) mstatus_mpie <= 1;
+                else if (is_csr_clear && data_rs1[3]) mstatus_mpie <= 0;
+            end
+        end
+    end
+
+    // Interrupts 1 and 0 trigger on rising edge
+    reg [1:0] last_interrupt_req;
+
+    reg [17:16] mip_reg;
+    wire [19:16] mip = {interrupt_req[3:2], mip_reg};
+    reg [19:16] mie;
+    always @(posedge clk) begin
+        if (!rstn) begin
+            mie <= 0;
+            mip_reg <= 0;
+        end else if (counter == 4) begin
+            if (imm_lo == 12'h304) begin
+                if (is_csr_write) mie <= data_rs1;
+                else if (is_csr_set) mie <= mie | data_rs1;
+                else if (is_csr_clear) mie <= mie & ~data_rs1;
+            end else if (imm_lo == 12'h344) begin 
+                if (is_csr_write) mip_reg <= data_rs1[1:0];
+                else if (is_csr_set) mip_reg <= mip_reg | data_rs1[1:0];
+                else if (is_csr_clear) mip_reg <= mip_reg & ~data_rs1[1:0];
+            end
+        end else if (counter == 5) begin
+            last_interrupt_req <= interrupt_req[1:0];
+            mip_reg <= mip_reg | (interrupt_req[1:0] & ~last_interrupt_req);
+        end
+    end
+
+    assign interrupt_pending = mstatus_mie && |(mip & mie);
+
+
     ///////// CSRs /////////    
 
+    wire is_csr = is_system && alu_op[1:0] != 2'b00;
     reg [3:0] csr_read;
+    wire is_csr_write = is_csr && alu_op[1:0] == 2'b01;
+    wire is_csr_set   = is_csr && alu_op[1:0] == 2'b10;
+    wire is_csr_clear = is_csr && alu_op[1:0] == 2'b11;
     always @(*) begin
         case (imm_lo) 
+            // mstatus
+            12'h300: csr_read = (counter == 0) ? {mstatus_mie, 3'b000} :
+                                (counter == 1) ? {mstatus_mpie, 3'b000} :
+                                                 4'b0000;
+
             // misa
             12'h301: csr_read = (counter == 0 || counter == 7) ? 4'b0100 :  // C, 32
                                 (counter == 1) ?                 4'b0001 :  // E
                                                                  4'b0000;
             
+            // mie
+            12'h304: csr_read = (counter == 4) ? mie : 4'b0000;
+
             // mepc
             12'h341: csr_read = (counter <= 5) ? mepc[3:0] : 4'b0000;
 
@@ -317,6 +388,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                                 (counter == 7) ? {mcause[5], 3'b000} :
                                                  4'b0000;
             
+            // mip
+            12'h344: csr_read = (counter == 4) ? mip : 4'b0000;
+
             12'hC00: csr_read = cycle_count;
             12'hC01: csr_read = time_count;
             12'hC02: csr_read = instrret_count;

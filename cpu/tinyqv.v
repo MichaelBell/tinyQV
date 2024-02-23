@@ -19,6 +19,9 @@ module tinyQV (
     input         data_ready,  // Transaction complete/data request can be modified.
     input  [31:0] data_in,
 
+    // Interrupt requests: Bottom 2 bits trigger on rising edge, next two are a status
+    input   [3:0] interrupt_req,
+
     // External SPI interface
     input   [3:0] spi_data_in,
     output  [3:0] spi_data_out,
@@ -73,6 +76,8 @@ module tinyQV (
         .instr_fetch_stopped(instr_fetch_stopped),
         .instr_data_in(instr_data),
         .instr_ready(instr_ready),
+
+        .interrupt_req(interrupt_req),
 
         .data_addr(qv_data_addr),
         .data_write_n(qv_data_write_n),

@@ -16,7 +16,11 @@ module tb_core (
     output [31:0] addr_out,
     output address_ready,
     output instr_complete,
-    output branch
+    output branch,
+
+    input interrupt,
+    input [3:0] interrupt_req,
+    output interrupt_pending
 );
 
 `ifdef COCOTB_SIM
@@ -108,7 +112,7 @@ end
         is_jal,
         is_system,
         1'b0,
-        1'b0,
+        interrupt,
 
         alu_op,
         mem_op,
@@ -127,7 +131,10 @@ end
         addr_out[27:0],
         address_ready,
         instr_complete,
-        branch
+        branch,
+
+        interrupt_req,
+        interrupt_pending
         );
 
 endmodule

@@ -98,6 +98,8 @@ module tinyQV_top (
         .data_ready(data_ready),
         .data_in(data_from_read),
 
+        .interrupt_req(interrupt_req),
+
         .spi_data_in(qspi_data_in),
         .spi_data_out(qspi_data_out),
         .spi_data_oe(qspi_data_oe),
@@ -126,6 +128,9 @@ module tinyQV_top (
 
     // All transactions complete immediately
     assign data_ready = 1'b1;
+
+    // Interrupt requests
+    wire [3:0] interrupt_req = {!uart_tx_busy, uart_rx_valid, button2, button1};
 
     // Read data
     always @(*) begin
