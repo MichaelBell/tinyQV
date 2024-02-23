@@ -130,7 +130,11 @@ module tinyQV_top (
     assign data_ready = 1'b1;
 
     // Interrupt requests
-    wire [3:0] interrupt_req = {!uart_tx_busy, uart_rx_valid, button2, button1};
+    reg [1:0] ui_in_reg;
+    always @(posedge clk) begin
+        ui_in_reg <= {button2, button1};
+    end
+    wire [3:0] interrupt_req = {!uart_tx_busy, uart_rx_valid, ui_in_reg};
 
     // Read data
     always @(*) begin
