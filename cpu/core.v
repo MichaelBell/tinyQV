@@ -19,9 +19,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input is_branch,
     input is_jalr,
     input is_jal,
-/*verilator lint_off UNUSEDSIGNAL*/
     input is_system,
-/*verilator lint_on UNUSEDSIGNAL*/
+    input is_interrupt,
     input is_stall,
 
     input [3:0] alu_op,  // See tinyqv_alu for format
@@ -166,7 +165,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Branching /////////
 
-    assign branch = last_count && ((cycle == 0 && (is_jal || is_jalr)) || (cycle == 1 && is_branch));
+    assign branch = last_count && ((is_jal || is_jalr || is_trap || is_interrupt) || (cycle == 1 && is_branch));
     wire take_branch = last_count && (cmp_out ^ mem_op[0]);
 
 
@@ -219,6 +218,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             tmp_data_in = data_rs1;
         else if (is_mul)
             tmp_data_in = data_rs2;
+        else if (is_trap)
+            tmp_data_in = (counter == 0) ? 4'b0100 : 4'b0000;
         else if (cycle == 0 || is_branch)
             tmp_data_in = alu_out;
         else
@@ -270,12 +271,52 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .data(instrret_count)
     );
 
+
+    ///////// Traps /////////    
+
+    wire is_trap = is_system && (alu_op[2:0] == 3'b000);
+    reg [5:0] mcause;
+    always @(posedge clk) begin
+        if (!rstn) mcause <= 0;
+        else if (counter == 0) begin
+            if (is_interrupt) begin
+                mcause <= {1'b1, imm_lo[4:0]};
+            end else if (is_trap) begin
+                if (imm == 4'b0000)      mcause <= 6'd11;  // ECALL
+                else if (imm == 4'b0001) mcause <= 6'd3;   // EBREAK
+                else                     mcause <= 6'd2;   // Illegal instruction
+            end
+        end
+    end
+
+    reg [23:0] mepc;
+    always @(posedge clk) begin
+        if (counter <= 5) begin
+            mepc <= {(!rstn) ?                   4'b0000 :
+                     (is_interrupt || is_trap) ? pc : 
+                                                 mepc[3:0], mepc[23:4]};
+        end
+    end
+
+    ///////// CSRs /////////    
+
     reg [3:0] csr_read;
     always @(*) begin
         case (imm_lo) 
+            // misa
             12'h301: csr_read = (counter == 0 || counter == 7) ? 4'b0100 :  // C, 32
                                 (counter == 1) ?                 4'b0001 :  // E
                                                                  4'b0000;
+            
+            // mepc
+            12'h341: csr_read = (counter <= 5) ? mepc[3:0] : 4'b0000;
+
+            // mcause
+            12'h342: csr_read = (counter == 0) ? mcause[3:0] :
+                                (counter == 1) ? {3'b000, mcause[4]} :
+                                (counter == 7) ? {mcause[5], 3'b000} :
+                                                 4'b0000;
+            
             12'hC00: csr_read = cycle_count;
             12'hC01: csr_read = time_count;
             12'hC02: csr_read = instrret_count;

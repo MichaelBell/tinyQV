@@ -108,6 +108,7 @@ end
         is_jal,
         is_system,
         1'b0,
+        1'b0,
 
         alu_op,
         mem_op,

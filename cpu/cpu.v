@@ -16,6 +16,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input  [15:0] instr_data_in,
     input         instr_ready,
 
+    //input         interrupt,
+
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     output reg [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
@@ -216,6 +218,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
+    wire interrupt_core = 1'b0; // TODO
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
@@ -234,6 +237,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         is_jalr && instr_valid,
         is_jal && instr_valid,
         is_system && instr_valid,
+        interrupt_core,
         stall_core,
 
         alu_op,

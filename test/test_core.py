@@ -6,6 +6,7 @@ from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3, x5
+from riscvmodel import csrnames
 
 @cocotb.test()
 async def test_load_store(dut):
@@ -341,6 +342,32 @@ async def test_branch(dut):
         if dut.branch.value == 1:
             assert dut.addr_out.value == dut.pc.value + offset
 
+@cocotb.test()
+async def test_trap(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+    dut.pc.value = 0x8
+
+    await send_instr(dut, InstructionECALL().encode())
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x4
+    dut.pc.value = 0x4
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mcause).encode())
+    assert await get_reg_value(dut, x1) == 11
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mepc).encode())
+    assert await get_reg_value(dut, x1) == 0x8
+
+    dut.pc.value = 0x723456
+    await send_instr(dut, 0x00100073)   # InstructionEBREAK().encode()
+    assert dut.branch.value == 1
+    assert dut.addr_out.value == 0x4
+    await send_instr(dut, InstructionCSRRW(x2, x0, csrnames.mcause).encode())
+    assert await get_reg_value(dut, x2) == 3
+    await send_instr(dut, InstructionCSRRW(x1, x0, csrnames.mepc).encode())
+    assert await get_reg_value(dut, x1) == 0x723456
 
 @cocotb.test()
 async def test_shift(dut):
