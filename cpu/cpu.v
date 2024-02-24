@@ -124,24 +124,28 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_system <= 0;
             instr_len <= 2'b10;
         end else if ((counter_hi == 3'd7 && !instr_valid) || instr_complete) begin
-            imm <= imm_de;
-            is_load <= is_load_de;
-            is_alu_imm <= is_alu_imm_de;
-            is_auipc <= is_auipc_de;
-            is_store <= is_store_de;
-            is_alu_reg <= is_alu_reg_de;
-            is_lui <= is_lui_de;
-            is_branch <= is_branch_de;
-            is_jalr <= is_jalr_de;
-            is_jal <= is_jal_de;
-            is_system <= is_system_de;
-            instr_len <= instr_len_de;
-            alu_op <= alu_op_de;
-            mem_op <= mem_op_de;
-            rs1 <= rs1_de;
-            rs2 <= rs2_de;
-            rd <= rd_de;
-            instr_valid <= ({1'b0,instr_len_de} <= instr_avail_len) && !branch;
+            if ({1'b0,instr_len_de} <= instr_avail_len) begin
+                imm <= imm_de;
+                is_load <= is_load_de;
+                is_alu_imm <= is_alu_imm_de;
+                is_auipc <= is_auipc_de;
+                is_store <= is_store_de;
+                is_alu_reg <= is_alu_reg_de;
+                is_lui <= is_lui_de;
+                is_branch <= is_branch_de;
+                is_jalr <= is_jalr_de;
+                is_jal <= is_jal_de;
+                is_system <= is_system_de;
+                instr_len <= instr_len_de;
+                alu_op <= alu_op_de;
+                mem_op <= mem_op_de;
+                rs1 <= rs1_de;
+                rs2 <= rs2_de;
+                rd <= rd_de;
+                instr_valid <= !branch;
+            end else begin
+                instr_valid <= 0;
+            end
         end
     end
 
@@ -221,7 +225,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire interrupt_pending;
     reg interrupt_core;
     always @(posedge clk) begin
-        if (instr_complete_core)
+        if (!rstn)
+            interrupt_core <= 0;
+        else if (instr_complete_core)
             interrupt_core <= interrupt_pending;
     end
 
@@ -243,7 +249,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         is_jal && instr_valid,
         is_system && instr_valid,
         interrupt_core,
-        stall_core,
+        stall_core && !interrupt_core,
 
         alu_op,
         mem_op,
