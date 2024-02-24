@@ -351,6 +351,8 @@ async def test_trap(dut):
     dut.rstn.value = 1
     dut.pc.value = 0x8
 
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
+    assert await get_reg_value(dut, x1) == 0x8
     await send_instr(dut, InstructionECALL().encode())
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x4

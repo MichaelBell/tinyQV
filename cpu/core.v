@@ -278,7 +278,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire is_priv = is_system && (alu_op[2:0] == 3'b000);
     wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
     wire is_exception = is_trap || is_interrupt;
-    wire is_double_fault = is_trap && !mstatus_mie;
     wire is_mret = is_priv && (imm_lo[9:8] == 2'b11);
     reg [5:0] mcause;
     always @(posedge clk) begin
@@ -291,6 +290,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                     4'b??10: mcause[1:0] <= 2'b01;
                     4'b?100: mcause[1:0] <= 2'b10;
                     4'b1000: mcause[1:0] <= 2'b11;
+                    default: mcause[1:0] <= 2'b00;  // Shouldn't be possible
                 endcase
             end else if (is_trap) begin
                 if (imm == 4'b0000)      mcause <= 6'd11;  // ECALL
@@ -299,6 +299,14 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             end
         end
     end
+
+    // mstatus_mie is cleared while handling a trap, so need to latch double fault on counter==0.
+    reg is_double_fault_r;
+    always @(posedge clk) begin
+        if (counter == 0)
+            is_double_fault_r <= is_trap && !mstatus_mie;
+    end
+    wire is_double_fault = (counter == 0 && is_trap && !mstatus_mie) || is_double_fault_r;
 
     reg [23:0] mepc;
     always @(posedge clk) begin
