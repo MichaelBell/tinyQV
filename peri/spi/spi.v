@@ -30,7 +30,7 @@ module spi_ctrl (
 );
 
     reg [7:0] data;
-    reg [2:0] bits_remaining;
+    reg [3:0] bits_remaining;
     reg       end_txn_reg;
     reg [1:0] clock_count;
     reg [1:0] clock_divider;
@@ -39,7 +39,7 @@ module spi_ctrl (
         if (!rstn) begin
             busy <= 0;
             spi_select <= 1;
-            spi_clk_out <= 1;
+            spi_clk_out <= 0;
             clock_count <= 0;
             bits_remaining <= 0;
         end else begin
@@ -49,7 +49,7 @@ module spi_ctrl (
                     data <= data_in;
                     spi_dc <= dc_in;
                     end_txn_reg <= end_txn;
-                    bits_remaining <= 3'd7;
+                    bits_remaining <= 4'd8;
                     spi_select <= 0;
                     spi_clk_out <= 0;
                 end
@@ -59,13 +59,16 @@ module spi_ctrl (
                     clock_count <= 0;
                     spi_clk_out <= !spi_clk_out;
                     if (spi_clk_out) begin
-                        data <= {data[6:0], spi_miso};
+                        data[7:1] <= data[6:0];
+                        if (bits_remaining != 0) begin
+                            bits_remaining <= bits_remaining - 3'b001;
+                        end
+                    end else begin
+                        if (bits_remaining != 4'd8) data[0] <= spi_miso;
                         if (bits_remaining == 0) begin
                             busy <= 0;
                             spi_select <= end_txn_reg;
-                            spi_clk_out <= 1;
-                        end else begin
-                            bits_remaining <= bits_remaining - 3'b001;
+                            spi_clk_out <= 0;
                         end
                     end
                 end
