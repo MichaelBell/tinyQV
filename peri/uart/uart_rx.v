@@ -26,12 +26,10 @@ output wire [PAYLOAD_BITS-1:0] uart_rx_data   // The recieved data.
 //
 // Input bit rate of the UART line.
 parameter   BIT_RATE        = 9600; // bits / sec
-localparam  BIT_P           = 1_000_000_000 * 1/BIT_RATE; // nanoseconds
 
 //
 // Clock frequency in hertz.
-parameter   CLK_HZ          =    50_000_000;
-localparam  CLK_P           = 1_000_000_000 * 1/CLK_HZ; // nanoseconds
+parameter   CLK_HZ          = 50_000_000;
 
 //
 // Number of data bits recieved per UART packet.
@@ -47,7 +45,7 @@ parameter   STOP_BITS       = 1;
 
 //
 // Number of clock cycles per uart bit.
-localparam       CYCLES_PER_BIT     = BIT_P / CLK_P;
+localparam       CYCLES_PER_BIT     = (CLK_HZ - 1) / BIT_RATE;
 
 //
 // Size of the registers which store sample counts and bit durations.
