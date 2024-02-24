@@ -309,6 +309,8 @@ async def test_interrupt(dut):
     assert await read_reg(dut, x2, False) == 0x80
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mepc).encode())
     assert await read_reg(dut, x2, False) == 0x11C
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x80000010
 
     # Ack the interrupt
     await send_instr(dut, InstructionCSRRC(x0, x1, csrnames.mip).encode())
@@ -335,6 +337,8 @@ async def test_interrupt(dut):
     # Interrupts now disabled
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
     assert await read_reg(dut, x2, False) == 0x80
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x80000012
 
     # Clear the interrupt
     dut.interrupt_req.value = 0
@@ -342,3 +346,28 @@ async def test_interrupt(dut):
     await expect_branch(dut, 0x13C)
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
     assert await read_reg(dut, x2, False) == 0x88
+
+    # Enable and assert interrupt
+    await send_instr(dut, InstructionLUI(x1, 0x20).encode())
+    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mie).encode())
+    dut.interrupt_req.value = 2
+    await expect_branch(dut, 0x8)
+    dut.interrupt_req.value = 2
+
+    # Interrupts now disabled
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x80
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x80000011
+
+    # Trap, this is a double fault so causes reset
+    await send_instr(dut, 0x00100073) # EBREAK
+    await expect_branch(dut, 0)
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x3
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mie).encode())
+    assert await read_reg(dut, x2, False) == 0
+    
+

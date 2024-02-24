@@ -71,6 +71,14 @@ CSRs:
 
 Immediate forms of CSR instructions are not implemented.  MEPC can only be written with CSRRW.
 
+## Double fault / trap when interrupts globally disabled
+
+When entering a trap or interrupt handler further interrupts are automatically disabled - mstatus.mie is set to 0 and the old value preserved in mstatus.mpie.
+
+If a subsequent trap is hit while mstatus.mie is zero, this is an unrecoverable fault - if it entered the trap handler then the value of mepc would get overwritten, as would mstatus.mpie, so there would be no way to get back to the originally interrupted state.
+
+Therefore, if a trap is hit while mstatus.mie is 0 then tinyQV sets pc to address 0 (same as reset), but MEPC and MCAUSE are set as normal so could be checked on reset to investigate the issue.  mstatus.mie is set to 1 and mie and the clearable bits in mip are cleared, as for reset.
+
 ## QSPI memory interface
 
 Use flash in continuous read mode.  Writes to flash not supported.  TinyQV expects the flash to be in continuous read mode when the core is started.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.

@@ -216,7 +216,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         tmp_data_shift = 1;
         if (is_exception)
-            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap, 2'b00} : 4'b0000;
+            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap && mstatus_mie, 2'b00} : 4'b0000;
         else if (is_shift)
             tmp_data_in = data_rs1;
         else if (is_mul)
@@ -278,13 +278,20 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire is_priv = is_system && (alu_op[2:0] == 3'b000);
     wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
     wire is_exception = is_trap || is_interrupt;
+    wire is_double_fault = is_trap && !mstatus_mie;
     wire is_mret = is_priv && (imm_lo[9:8] == 2'b11);
     reg [5:0] mcause;
     always @(posedge clk) begin
         if (!rstn) mcause <= 0;
         else if (counter == 0) begin
             if (is_interrupt) begin
-                mcause <= {1'b1, imm_lo[4:0]};
+                mcause[5:2] <= 4'b1100;
+                casez (mip & mie)
+                    4'b???1: mcause[1:0] <= 2'b00;
+                    4'b??10: mcause[1:0] <= 2'b01;
+                    4'b?100: mcause[1:0] <= 2'b10;
+                    4'b1000: mcause[1:0] <= 2'b11;
+                endcase
             end else if (is_trap) begin
                 if (imm == 4'b0000)      mcause <= 6'd11;  // ECALL
                 else if (imm == 4'b0001) mcause <= 6'd3;   // EBREAK
@@ -307,7 +314,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg mstatus_mie;   // Interrupt enable
     reg mstatus_mpie;  // Prior interrupt enable (whether interrupts were enabled on entry to trap)
     always @(posedge clk) begin
-        if (!rstn) begin
+        if (!rstn || is_double_fault) begin
             mstatus_mie <= 1;
             mstatus_mpie <= 0;
         end else if (counter == 0 && (is_exception)) begin
@@ -335,7 +342,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [19:16] mip = {interrupt_req[3:2], mip_reg};
     reg [19:16] mie;
     always @(posedge clk) begin
-        if (!rstn) begin
+        if (!rstn || is_double_fault) begin
             mie <= 0;
             mip_reg <= 0;
         end else if (counter == 4) begin
