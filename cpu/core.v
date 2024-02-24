@@ -186,10 +186,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         instr_complete = 0;
         if (last_count) begin
-            if (is_alu_imm || is_alu_reg)
-                instr_complete = cycle == alu_cycles;
-            else if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall)
+            if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall || is_exception)
                 instr_complete = 1;
+            else if (is_alu_imm || is_alu_reg)
+                instr_complete = cycle == alu_cycles;
             else if (load_done && is_load)
                 instr_complete = 1;
             else if (is_branch) begin
@@ -215,12 +215,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     
     always @(*) begin
         tmp_data_shift = 1;
-        if (is_shift)
+        if (is_exception)
+            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap, 2'b00} : 4'b0000;
+        else if (is_shift)
             tmp_data_in = data_rs1;
         else if (is_mul)
             tmp_data_in = data_rs2;
-        else if (is_exception)
-            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap, 2'b00} : 4'b0000;
         else if (cycle == 0 || is_branch)
             tmp_data_in = alu_out;
         else
