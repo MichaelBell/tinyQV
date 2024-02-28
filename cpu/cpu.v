@@ -23,6 +23,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     output reg [31:0] data_out,
 
+    output reg    data_continue,
+
     input         data_ready,  // Transaction complete/data request can be modified.
     input  [31:0] data_in
 );
@@ -51,6 +53,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [3:0] rs1_de;
     wire [3:0] rs2_de;
     wire [3:0] rd_de;
+    wire [2:0] additional_mem_ops_de;
 
     tinyqv_decoder i_decoder(
         instr, 
@@ -73,7 +76,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
         rs1_de,
         rs2_de,
-        rd_de);
+        rd_de,
+        additional_mem_ops_de);
 
     reg [31:0] imm;
 
@@ -95,6 +99,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [3:0] rs1;
     reg [3:0] rs2;
     reg [3:0] rd;
+    reg [2:0] additional_mem_ops;
+
+    reg interrupt_core;
 
     reg instr_valid;
 
@@ -105,6 +112,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire address_ready;
     wire instr_complete_core;
     wire branch;
+    wire interrupt_pending;
+    wire any_additional_mem_ops = additional_mem_ops != 3'b000;
 
     reg [4:2] counter_hi;
     wire [4:0] counter = {counter_hi, 2'b00};
@@ -123,9 +132,17 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_jal <= 0;
             is_system <= 0;
             instr_len <= 2'b10;
+            additional_mem_ops <= 3'b000;
+            interrupt_core <= 0;
+        end else if (any_additional_mem_ops && instr_complete_core && !stall_core) begin
+            rs2 <= rs2 + 4'b0001;
+            rd <= rd + 4'b0001;
+            additional_mem_ops <= additional_mem_ops - 3'b001;
         end else if (instr_complete_core && interrupt_pending) begin
             instr_valid <= 0;
+            interrupt_core <= 1;
         end else if ((counter_hi == 3'd7 && !instr_valid) || instr_complete || branch) begin
+            interrupt_core <= 0;
             if ({1'b0,instr_len_de} <= instr_avail_len) begin
                 imm <= imm_de;
                 is_load <= is_load_de;
@@ -144,6 +161,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 rs1 <= rs1_de;
                 rs2 <= rs2_de;
                 rd <= rd_de;
+                additional_mem_ops <= additional_mem_ops_de;
                 instr_valid <= !branch;
             end else begin
                 instr_valid <= 0;
@@ -186,33 +204,28 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     reg no_write_in_progress;
+    reg load_started;
     always @(posedge clk) begin
         if (!rstn) begin
             data_write_n <= 2'b11;
             no_write_in_progress <= 1;
+            data_continue <= 0;
         end else if (is_store && address_ready) begin
             data_write_n <= mem_op[1:0];
             no_write_in_progress <= 0;
+            data_continue <= any_additional_mem_ops;
         end else if (data_ready) begin
             data_write_n <= 2'b11;
             if (counter_hi == 3'b111) no_write_in_progress <= 1;
         end else if (counter_hi == 3'b111) begin
             no_write_in_progress <= data_write_n == 2'b11;
         end
-    end
-
-    always @(posedge clk) begin
-        if (is_store && no_write_in_progress) begin
-            data_out[counter+:4] <= data_out_slice;
-        end
-    end
-
-    reg load_started;
-    always @(posedge clk) begin
+        
         if (is_load) begin
             if (address_ready) begin
                 data_read_n <= mem_op[1:0]; 
                 load_started <= 1;
+                data_continue <= any_additional_mem_ops;
             end 
             if (data_ready && load_started) begin
                 data_read_n <= 2'b11;
@@ -223,15 +236,13 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
-    wire interrupt_pending;
-    reg interrupt_core;
     always @(posedge clk) begin
-        if (!rstn)
-            interrupt_core <= 0;
-        else if (instr_complete_core)
-            interrupt_core <= interrupt_pending;
+        if (is_store && no_write_in_progress) begin
+            data_out[counter+:4] <= data_out_slice;
+        end
     end
+
+    wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
@@ -287,7 +298,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg instr_fetch_running;
 
-    wire instr_complete = instr_complete_core && !stall_core;
+    wire instr_complete = instr_complete_core && !stall_core && !any_additional_mem_ops;
 
     wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
     wire [23:0] next_pc = {instr_data_start, 3'b000} + {20'd0, next_pc_offset, 1'b0};

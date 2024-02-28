@@ -23,6 +23,8 @@ module tb_cpu (
     output reg [1:0]  data_read_n,
     output reg [31:0] data_out,
 
+    output        data_continue,
+
     input         data_ready,  // Transaction complete/data request can be modified.
     input  [31:0] data_in
 );
@@ -54,6 +56,8 @@ end
         data_write_n,
         data_read_n,
         data_out,
+
+        data_continue,
 
         data_ready,  // Transaction complete/data request can be modified.
         data_in        

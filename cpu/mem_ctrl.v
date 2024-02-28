@@ -173,7 +173,7 @@ module tinyqv_mem_ctrl (
             if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||
                 (qspi_data_ready && qspi_data_byte_idx == data_txn_len))
                 data_stall <= 1;
-            else if ((data_read_n != 2'b11 || data_write_n != 2'b11) && qspi_data_byte_idx == 2'b00)
+            else if ((data_read_n != 2'b11 || data_write_n != 2'b11) && qspi_data_byte_idx == 2'b00 && !data_ready)
                 data_stall <= 0;
         end else
             data_stall <= 0;

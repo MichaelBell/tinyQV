@@ -8,7 +8,7 @@ from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3, x5
 from riscvmodel import csrnames
 
-async def send_instr(dut, instr, fast=False):
+async def send_instr(dut, instr, fast=False, len=4):
     await ClockCycles(dut.clk, 1)
     dut.instr_fetch_started.value = 0
     dut.instr_ready.value = 0
@@ -16,18 +16,15 @@ async def send_instr(dut, instr, fast=False):
         await ClockCycles(dut.clk, 7)
     dut.instr_data_in.value = instr & 0xFFFF
     dut.instr_ready.value = 1
-    await ClockCycles(dut.clk, 1)
-    dut.instr_ready.value = 0
-    if not fast:
-        await ClockCycles(dut.clk, 7)
-    dut.instr_data_in.value = (instr >> 16) & 0xFFFF
-    dut.instr_ready.value = 1
+    if len == 4:
+        await ClockCycles(dut.clk, 1)
+        dut.instr_ready.value = 0
+        if not fast:
+            await ClockCycles(dut.clk, 7)
+        dut.instr_data_in.value = (instr >> 16) & 0xFFFF
+        dut.instr_ready.value = 1
 
-async def read_reg(dut, reg, random_delay=True):
-    offset = random.randint(0, 0x7FF)
-    instr = InstructionSW(x0, reg, offset).encode()
-    await send_instr(dut, instr)
-
+async def expect_store(dut, addr, random_delay=True):
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
     assert dut.data_write_n.value == 0b11
@@ -36,7 +33,7 @@ async def read_reg(dut, reg, random_delay=True):
         await ClockCycles(dut.clk, 1)
         if dut.data_write_n.value != 0b11:
             assert dut.data_write_n.value == 0b10
-            assert dut.data_addr.value == offset
+            assert dut.data_addr.value == addr
             val = dut.data_out.value
             if random_delay:
                 await ClockCycles(dut.clk, random.randint(1, 16))
@@ -52,6 +49,13 @@ async def read_reg(dut, reg, random_delay=True):
 
     assert False
 
+async def read_reg(dut, reg, random_delay=True):
+    offset = random.randint(0, 0x7FF)
+    instr = InstructionSW(x0, reg, offset).encode()
+    await send_instr(dut, instr)
+
+    return await expect_store(dut, offset, random_delay)
+
 async def expect_branch(dut, addr):
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
@@ -66,11 +70,7 @@ async def expect_branch(dut, addr):
 
     assert False
 
-async def load_reg(dut, reg, value):
-    offset = random.randint(0, 0x7FF)
-    instr = InstructionLW(reg, x0, offset).encode()
-    await send_instr(dut, instr)
-
+async def expect_load(dut, addr, val):
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
     assert dut.data_read_n.value == 0b11
@@ -79,9 +79,9 @@ async def load_reg(dut, reg, value):
         await ClockCycles(dut.clk, 1)
         if dut.data_read_n.value != 0b11:
             assert dut.data_read_n.value == 0b10
-            assert dut.data_addr.value == offset
+            assert dut.data_addr.value == addr
             await ClockCycles(dut.clk, random.randint(1, 16))
-            dut.data_in.value = value
+            dut.data_in.value = val
             dut.data_ready.value = 1
             await ClockCycles(dut.clk, 1)
             dut.data_ready.value = 0
@@ -90,6 +90,13 @@ async def load_reg(dut, reg, value):
             break
     else:
         assert False
+
+async def load_reg(dut, reg, value):
+    offset = random.randint(0, 0x7FF)
+    instr = InstructionLW(reg, x0, offset).encode()
+    await send_instr(dut, instr)
+
+    await expect_load(dut, offset, value)
 
 async def start(dut):
     clock = Clock(dut.clk, 4, units="ns")
@@ -371,3 +378,56 @@ async def test_interrupt(dut):
     assert await read_reg(dut, x2, False) == 0
     
 
+@cocotb.test()
+async def test_context(dut):
+    await start(dut)
+
+
+    def encode_clcxt(imm, reg_seg, num_regs):
+        scrambled = (((imm << (12 - 9)) & 0b1000000000000) |
+                     ((imm << ( 6 - 4)) & 0b0000001000000) |
+                     ((imm >> ( 6 - 5)) & 0b0000000100000) |
+                     ((imm >> ( 7 - 3)) & 0b0000000011000) |
+                     ((imm >> ( 5 - 2)) & 0b0000000000100))
+        return 0x2002 | scrambled | (reg_seg << 10) | ((num_regs - 1) << 7)
+    
+    def encode_cscxt(imm, reg_seg, num_regs):
+        scrambled = (((imm << (12 - 9)) & 0b1000000000000) |
+                     ((imm << (11 - 4)) & 0b0100000000000) |
+                     ((imm << (10 - 5)) & 0b0010000000000) |
+                     ((imm << ( 7 - 6)) & 0b0001110000000))
+        return 0xE000 | scrambled | (reg_seg << 5) | ((num_regs - 1) << 2)
+    
+    data = []
+    for i in range(10):
+        data.append(random.randint(0, (1 << 32) - 1))
+    await load_reg(dut, x1, data[0])
+    await load_reg(dut, x2, data[1])
+
+    await send_instr(dut, encode_cscxt(0, 0, 2), False, 2)
+    await expect_store(dut, 0x1000400) == data[0]
+    await expect_store(dut, 0x1000400) == data[1]
+
+    for i in range(8):
+        await load_reg(dut, 8+i, data[2+i])
+
+    await send_instr(dut, encode_cscxt(16, 1, 7), False, 2)
+    for i in range(7):
+        await expect_store(dut, 0x1000410) == data[i+3]
+
+    for i in range(10):
+        data[i] = random.randint(0, (1 << 32) - 1)
+
+    await send_instr(dut, encode_clcxt(0, 0, 2), False, 2)
+    await expect_load(dut, 0x1000400, data[0])
+    await expect_load(dut, 0x1000400, data[1])
+
+    assert await read_reg(dut, x1) == data[0]
+    assert await read_reg(dut, x2) == data[1]
+
+    await send_instr(dut, encode_clcxt(-0x200 & 0x3F0, 1, 7), False, 2)
+    for i in range(7):
+        await expect_load(dut, 0x1000200, data[i+3])
+
+    for i in range(7):
+        assert await read_reg(dut, i+9) == data[i+3]

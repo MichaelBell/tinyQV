@@ -27,7 +27,9 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
 
     output reg [REG_ADDR_BITS-1:0] rs1,
     output reg [REG_ADDR_BITS-1:0] rs2,
-    output reg [REG_ADDR_BITS-1:0] rd
+    output reg [REG_ADDR_BITS-1:0] rd,
+
+    output reg [2:0] additional_mem_ops
 );
 
     wire [31:0] Uimm = {    instr[31],   instr[30:12], {12{1'b0}}};
@@ -46,8 +48,11 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     wire [31:0] CLUIimm      = {14'b0, instr[12], instr[6:2], 12'b0};
     wire [31:0] CADDI16SPimm = {{23{instr[12]}}, instr[4:3], instr[5], instr[2], instr[6], 4'b0};
     wire [31:0] CADDI4SPimm  = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
+    wire [31:0] CSCXTimm     = {{23{instr[12]}}, instr[9:7], instr[10], instr[11], 4'b0};
 
     always @(*) begin
+        additional_mem_ops = 3'b000;
+
         if (instr[1:0] == 2'b11) begin
             is_load    =  (instr[6:2] == 5'b00000); // rd <- mem[rs1+Iimm]
             is_alu_imm =  (instr[6:2] == 5'b00100); // rd <- rs1 OP Iimm
@@ -116,6 +121,14 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     imm = CLSWimm;
                     rs1 = {1'b1, instr[9:7]};
                     rs2 = {1'b1, instr[4:2]};
+                end
+                5'b00111: begin // SCXT: Store rs2[2:0]+1 contiguous registers starting at {rs2[4:3], 3'b001}
+                    is_store = 1;    //  from address imm(gp) (imm is a sign-extended 6-bit immediate multiplied by 16)
+                    mem_op = 3'b010;
+                    imm = CSCXTimm;
+                    rs1 = 4'd3;
+                    rs2 = {instr[5], 3'b001};
+                    additional_mem_ops = instr[4:2];
                 end
                 5'b01000: begin // ADDI
                     is_alu_imm = 1;
@@ -194,6 +207,14 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     rs1 = instr[10:7];
                     rd  = instr[10:7];
                     alu_op = 4'b0001;
+                end
+                5'b10001: begin // LCXT: Load rd[2:0]+1 contiguous registers starting at {rd[4:3], 3'b001}
+                    is_load = 1;     //  from address imm(gp) (imm is a sign-extended 6-bit immediate multiplied by 16)
+                    mem_op = 3'b010;
+                    imm = CADDI16SPimm;
+                    rs1 = 4'd3;
+                    rd  = {instr[10], 3'b001};
+                    additional_mem_ops = instr[9:7];
                 end
                 5'b10010: begin // LWSP
                     is_load = 1;
