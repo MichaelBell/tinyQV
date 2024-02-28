@@ -123,7 +123,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_jal <= 0;
             is_system <= 0;
             instr_len <= 2'b10;
-        end else if ((counter_hi == 3'd7 && !instr_valid) || instr_complete) begin
+        end else if (instr_complete_core && interrupt_pending) begin
+            instr_valid <= 0;
+        end else if ((counter_hi == 3'd7 && !instr_valid) || instr_complete || branch) begin
             if ({1'b0,instr_len_de} <= instr_avail_len) begin
                 imm <= imm_de;
                 is_load <= is_load_de;
