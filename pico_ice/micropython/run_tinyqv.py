@@ -110,7 +110,7 @@ def setup_ram():
         spi_cmd(spi, [0x35], sel)
 
 def run(query=True, stop=True):
-    machine.freq(128_000_000)
+    machine.freq(112_000_000)
 
     for i in range(30):
         Pin(i, Pin.IN, pull=None)
@@ -180,7 +180,7 @@ def run(query=True, stop=True):
     time.sleep(0.001)
     clk.off()
 
-    sm = rp2.StateMachine(1, pio_capture, 32_000_000, in_base=Pin(0))
+    sm = rp2.StateMachine(1, pio_capture, 28_000_000, in_base=Pin(0))
 
     capture_len=1024
     buf = bytearray(capture_len)
@@ -203,7 +203,7 @@ def run(query=True, stop=True):
 
     #uart = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1))
     time.sleep(0.001)
-    clk = PWM(Pin(24), freq=16_000_000, duty_u16=32768)
+    clk = PWM(Pin(24), freq=14_000_000, duty_u16=32768)
 
     # Wait for DMA to complete
     while rx_dma.active():
