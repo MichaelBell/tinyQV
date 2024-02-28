@@ -21,6 +21,8 @@ module tinyqv_mem_ctrl (
     input [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [31:0] data_to_write,
 
+    input        data_continue, // Whether another read/write at the next address will immediately follow this one
+
     output         data_ready,  // Transaction complete/data request can be modified.
     output  [31:0] data_from_read,
 
@@ -61,7 +63,7 @@ module tinyqv_mem_ctrl (
                         stop_txn = 1;
                     end
                 end
-            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len) begin
+            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len && !data_continue) begin
                 // Data transaction is complete
                 stop_txn = 1;
             end
@@ -118,7 +120,7 @@ module tinyqv_mem_ctrl (
         data_to_write[{write_qspi_data_byte_idx,3'b000} +:8],
         start_read || start_instr,
         start_write,
-        stall_txn,
+        stall_txn || data_stall,
         stop_txn,
 
         qspi_data_out,
@@ -163,6 +165,18 @@ module tinyqv_mem_ctrl (
     reg qspi_write_done;
     always @(posedge clk) begin
         qspi_write_done <= qspi_data_req && qspi_data_byte_idx == data_txn_len;
+    end
+
+    reg data_stall;
+    always @(posedge clk) begin
+        if (data_continue) begin
+            if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||
+                (qspi_data_ready && qspi_data_byte_idx == data_txn_len))
+                data_stall <= 1;
+            else if ((data_read_n != 2'b11 || data_write_n != 2'b11) && qspi_data_byte_idx == 2'b00)
+                data_stall <= 0;
+        end else
+            data_stall <= 0;
     end
 
     assign data_ready = !instr_active && ((qspi_data_ready && qspi_data_byte_idx == data_txn_len) || qspi_write_done);

@@ -143,11 +143,11 @@ module qspi_controller (
                     spi_clk_out <= 0;
                     if (!stall_txn && read_cycles_count < 3'b010) begin
                         data_ready <= !is_writing;
-                        if (is_writing || delay_cycles_cfg[2:1] == 2'b00) begin
+                        if (is_writing) begin
                             fsm_state <= FSM_DATA;
-                            read_cycles_count <= delay_cycles_cfg;
+                            read_cycles_count <= 3'b000;
                         end else begin
-                            fsm_state <= FSM_STALL_RECOVER;
+                            fsm_state <= (delay_cycles_cfg[2:1] == 2'b00) ? FSM_DATA : FSM_STALL_RECOVER;
                             read_cycles_count <= {1'b0, delay_cycles_cfg[2], delay_cycles_cfg[0]};
                         end
                     end
@@ -215,8 +215,10 @@ module qspi_controller (
 
     always @(posedge clk) begin
         if (is_writing) begin
-            if (spi_clk_out) begin
-                if (nibbles_remaining == 0 || fsm_state == FSM_STALLED) begin
+            if (fsm_state == FSM_STALLED) begin
+                data <= data_in;
+            end else if (spi_clk_out) begin
+                if (nibbles_remaining == 0) begin
                     data <= data_in;
                 end else if (fsm_state == FSM_DATA) begin
                     data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
