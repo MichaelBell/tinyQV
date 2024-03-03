@@ -259,8 +259,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(posedge clk) begin
         if (!rstn)
             was_early_branch <= 0;
-        else if (counter_hi == 3'd7 && !branch)
-            was_early_branch <= early_branch;
+        else if (counter_hi == 3'd7)
+            was_early_branch <= early_branch && !branch;
     end
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
@@ -344,9 +344,15 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else begin
 
             if (branch) begin
-                instr_data_start <= addr_out[23:3];
-                instr_write_offset <= {1'b0, addr_out[2:1]};
-                pc_offset <= addr_out[2:1];
+                if (is_branch && instr_valid) begin
+                    instr_data_start <= early_branch_addr[23:3];
+                    instr_write_offset <= {1'b0, early_branch_addr[2:1]};
+                    pc_offset <= early_branch_addr[2:1];
+                end else begin
+                    instr_data_start <= addr_out[23:3];
+                    instr_write_offset <= {1'b0, addr_out[2:1]};
+                    pc_offset <= addr_out[2:1];
+                end
                 instr_fetch_running <= was_early_branch;
             end
             else begin

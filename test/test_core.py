@@ -273,21 +273,18 @@ async def test_branch(dut):
     await send_instr(dut, InstructionADDI(x2, x0, -0x200).encode())
     await send_instr(dut, InstructionBEQ(x0, x1, 0x20).encode(), 1)
     assert dut.branch.value == 0
-    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode(), 2)
+    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode(), 1)
     assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x28
     dut.pc.value = 0x28
-    await send_instr(dut, InstructionBLT(x2, x1, -0x20).encode(), 2)
+    await send_instr(dut, InstructionBLT(x2, x1, -0x20).encode(), 1)
     assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x8
     dut.pc.value = 0x8
     await send_instr(dut, InstructionBGE(x2, x1, 0x20).encode(), 1)
     assert dut.branch.value == 0
     await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode(), 1)
     assert dut.branch.value == 0
-    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), 2)
+    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), 1)
     assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x28
     dut.pc.value = 0x28
 
     ops = [
@@ -321,8 +318,6 @@ async def test_branch(dut):
         #print(a, b, op)
         await send_instr(dut, op[0](r1, r2, offset).encode())
         assert dut.branch.value == op[1](a, b)
-        if dut.branch.value == 1:
-            assert dut.addr_out.value == dut.pc.value + offset
 
     for i in range(400):
         r1 = random.randint(0, 15) 
@@ -339,8 +334,6 @@ async def test_branch(dut):
         op = random.choice(ops)
         await send_instr(dut, op[0](r1, r2, offset).encode())
         assert dut.branch.value == op[1](a, b)
-        if dut.branch.value == 1:
-            assert dut.addr_out.value == dut.pc.value + offset
 
 @cocotb.test()
 async def test_trap(dut):

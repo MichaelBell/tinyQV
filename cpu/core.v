@@ -72,9 +72,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg cy;
     reg cmp;
-    wire [3:0] alu_op_in = (is_branch && cycle == 1) ? 4'b0000 : alu_op;
-    wire [3:0] alu_a_in = (is_auipc || is_jal || (is_branch && cycle == 1)) ? pc : data_rs1;
-    wire [3:0] alu_b_in = (is_alu_reg || (is_branch && cycle == 0)) ? data_rs2 : imm;
+    wire [3:0] alu_op_in = alu_op;
+    wire [3:0] alu_a_in = (is_auipc || is_jal) ? pc : data_rs1;
+    wire [3:0] alu_b_in = (is_alu_reg || is_branch) ? data_rs2 : imm;
     wire [3:0] alu_out;
     wire cy_in = (counter == 0) ? (alu_op_in[1] || alu_op_in[3]) : cy;
     wire cmp_in = (counter == 0) ? 1'b1 : cmp;
@@ -166,8 +166,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Branching /////////
 
-    assign branch = last_count && ((is_jal || is_jalr || is_trap || is_interrupt || is_mret) || (cycle == 1 && is_branch));
     wire take_branch = last_count && (cmp_out ^ mem_op[0]);
+    assign branch = last_count && ((is_jal || is_jalr || is_trap || is_interrupt || is_mret) || (is_branch && take_branch));
 
 
     ///////// Cycle management /////////
@@ -186,16 +186,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         instr_complete = 0;
         if (last_count) begin
-            if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall || is_exception)
+            if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall || is_exception || is_branch)
                 instr_complete = 1;
             else if (is_alu_imm || is_alu_reg)
                 instr_complete = cycle == alu_cycles;
             else if (load_done && is_load)
                 instr_complete = 1;
-            else if (is_branch) begin
-                if (cycle == 0 && !take_branch) instr_complete = 1;
-                else if (cycle == 1) instr_complete = 1;
-            end
         end
     end
 
@@ -221,7 +217,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             tmp_data_in = data_rs1;
         else if (is_mul)
             tmp_data_in = data_rs2;
-        else if (cycle == 0 || is_branch)
+        else if (cycle == 0)
             tmp_data_in = alu_out;
         else
             tmp_data_in = data_rs2;
