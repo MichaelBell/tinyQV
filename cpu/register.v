@@ -23,7 +23,9 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     output [3:0] data_rs1,
     output [3:0] data_rs2,
-    input [3:0] data_rd
+    input [3:0] data_rd,
+
+    output [23:1] return_addr
 );
 
     reg [31:0] registers [1:NUM_REGS-1];
@@ -57,5 +59,7 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     assign data_rs1 = reg_access[rs1];
     assign data_rs2 = reg_access[rs2];
+
+    assign return_addr = registers[1][31:9];
 
 endmodule

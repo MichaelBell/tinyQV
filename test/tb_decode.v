@@ -20,6 +20,7 @@ module tb_decode (
     output is_branch,
     output is_jalr,
     output is_jal,
+    output is_ret,
     output is_system,
 
     output [2:0] instr_len,
@@ -52,6 +53,7 @@ end
         is_branch,
         is_jalr,
         is_jal,
+        is_ret,
         is_system,
 
         instr_len[2:1],

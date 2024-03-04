@@ -42,6 +42,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.
                             // If no new instruction is available all a NOOP should be issued, which will complete in 1 cycle.
     output branch,          // addr_out holds the address to branch to
+    
+    output [23:1] return_addr, // On count 7 this is the low 24 bits of x1
 
     input [3:0] interrupt_req,
     output interrupt_pending
@@ -57,14 +59,14 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [31:0] tmp_data;
 
     tinyqv_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
-        i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
+        i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd, return_addr);
 
 
     ///////// ALU /////////
 
     wire is_slt = alu_op[3:1] == 3'b001;
 
-    reg [2:0] alu_cycles;
+    reg [1:0] alu_cycles;
     always @(*) begin
         if (is_slt || is_shift || is_mul) alu_cycles = 1;
         else alu_cycles = 0;
@@ -174,12 +176,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     wire last_count = (counter == 7);
 
-    reg [2:0] cycle;
+    reg [1:0] cycle;
     always @(posedge clk) begin
         if (!rstn) cycle <= 0;
         else if (last_count) begin
             if (instr_complete) cycle <= 0;
-            else if (cycle != 3'b111) cycle <= cycle + 1;
+            else if (cycle != 2'b11) cycle <= cycle + 1;
         end
     end
 
@@ -198,7 +200,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg load_done;
     always @(posedge clk) begin
         if (counter == 0)
-            load_done <= load_data_ready && cycle[2:1] != 2'b00;
+            load_done <= load_data_ready && cycle[1] != 1'b0;
     end
 
     assign address_ready = last_count && (cycle == 0) && (is_load || is_store);

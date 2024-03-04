@@ -17,6 +17,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     output reg is_branch,
     output reg is_jalr,
     output reg is_jal,
+    output reg is_ret,
     output reg is_system,
 
     output [2:1] instr_len,
@@ -52,6 +53,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
 
     always @(*) begin
         additional_mem_ops = 3'b000;
+        is_ret = 0;
 
         if (instr[1:0] == 2'b11) begin
             is_load    =  (instr[6:2] == 5'b00000); // rd <- mem[rs1+Iimm]
@@ -79,6 +81,11 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             else alu_op = {instr[30] && (instr[5] || instr[13:12] == 2'b01),instr[14:12]};
 
             mem_op = instr[14:12];
+            if ((is_load || is_store) && instr[13:12] == 2'b11) begin
+                // TinyQV custom: 2 or 4 loads/stores to consecutive registers
+                mem_op = 3'b010;
+                additional_mem_ops = {1'b0, instr[14], 1'b1};
+            end
 
             rs1 = instr[15+:REG_ADDR_BITS];
             rs2 = instr[20+:REG_ADDR_BITS];
@@ -236,6 +243,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                             is_system = 1;
                             imm = 1;
                         end else begin // J(AL)R
+                            if (instr[10:7] == 4'd1 && !instr[12]) is_ret = 1;
                             is_jalr = 1;
                             imm = 0;
                             rs1 = instr[10:7];

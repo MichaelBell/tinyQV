@@ -17,6 +17,7 @@ module tb_core (
     output address_ready,
     output instr_complete,
     output branch,
+    output [23:1] return_addr,
 
     input interrupt,
     input [3:0] interrupt_req,
@@ -42,6 +43,7 @@ end
     wire is_branch;
     wire is_jalr;
     wire is_jal;
+    wire is_ret;
     wire is_system;
 
     wire [2:1] instr_len;
@@ -64,6 +66,7 @@ end
         is_branch,
         is_jalr,
         is_jal,
+        is_ret,
         is_system,
 
         instr_len,
@@ -132,6 +135,7 @@ end
         address_ready,
         instr_complete,
         branch,
+        return_addr,
 
         interrupt_req,
         interrupt_pending

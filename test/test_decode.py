@@ -800,7 +800,7 @@ async def test_jalr(dut):
         else:
             return 0x8002 | (reg << 7)
 
-    for i in range(100):
+    for i in range(200):
         reg = random.randint(1, 15)
         dest_reg = random.randint(0, 1)
         dut.instr.value = encode_cjalr(dest_reg, reg)
@@ -814,6 +814,7 @@ async def test_jalr(dut):
         assert dut.is_lui.value == 0
         assert dut.is_branch.value == 0
         assert dut.is_jalr.value == 1
+        assert dut.is_ret.value == (1 if reg == 1 and dest_reg == 0 else 0)
         assert dut.is_jal.value == 0
         assert dut.is_system.value == 0
         assert dut.instr_len.value == 2

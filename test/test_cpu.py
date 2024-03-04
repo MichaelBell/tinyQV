@@ -56,10 +56,11 @@ async def read_reg(dut, reg, random_delay=True):
 
     return await expect_store(dut, offset, random_delay)
 
-async def expect_branch(dut, addr):
+async def expect_branch(dut, addr, early=False):
     await ClockCycles(dut.clk, 1)
     dut.instr_ready.value = 0
-    assert dut.instr_fetch_restart.value == 0
+    if not early:
+        assert dut.instr_fetch_restart.value == 0
 
     for i in range(24):
         await ClockCycles(dut.clk, 1)
@@ -255,6 +256,16 @@ async def test_jump(dut):
     await send_instr(dut, InstructionJALR(x2, x1, -0x20).encode())
     await expect_branch(dut, 0x1104)
     assert await read_reg(dut, x2) == 0x12C
+
+    def encode_cjalr(dest_reg, reg):
+        if dest_reg == 1:
+            return 0x9002 | (reg << 7)
+        else:
+            return 0x8002 | (reg << 7)
+
+    await send_instr(dut, InstructionADDI(x1, x1, 0x40).encode())
+    await send_instr(dut, encode_cjalr(x0, x1))
+    await expect_branch(dut, 0x1164, True)
 
 @cocotb.test()
 async def test_branch(dut):
