@@ -246,22 +246,31 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     ///////// Counters /////////
 
     wire [6:0] cycle_count_wide;
+    wire cycle_cy;
     tinyqv_counter #(.OUTPUT_WIDTH(7)) i_cycles (
         .clk(clk),
         .rstn(rstn),
         .add(1'b1),
         .counter(counter),
-        .data(cycle_count_wide)
+        .data(cycle_count_wide),
+        .cy_out(cycle_cy)
     );
 
+    reg [2:0] time_hi;
+    always @(posedge clk) begin
+        if (!rstn) time_hi <= 0;
+        else if (counter == 7 && cycle_cy) time_hi <= time_hi + 3'b001;
+    end
+
     wire [3:0] cycle_count = cycle_count_wide[3:0];
-    wire [3:0] time_count = (counter == 7) ? {3'b000, cycle_count_wide[3]} : cycle_count_wide[6:3];
+    wire [3:0] time_count = (counter == 7) ? {time_hi, cycle_count_wide[3]} : cycle_count_wide[6:3];
 
     wire [3:0] instrret_count;
     reg instr_retired;
     always @(posedge clk) begin
         instr_retired <= instr_complete && !is_stall;
     end
+    /* verilator lint_off PINMISSING */  // No carry
     tinyqv_counter i_instrret (
         .clk(clk),
         .rstn(rstn),
@@ -269,6 +278,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .counter(counter),
         .data(instrret_count)
     );
+    /* verilator lint_on PINMISSING */
 
 
     ///////// Traps and interrupts /////////    

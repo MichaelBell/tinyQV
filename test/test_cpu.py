@@ -1,6 +1,7 @@
 import random
 
 import cocotb
+import cocotb.utils
 from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
@@ -299,6 +300,44 @@ async def test_csr(dut):
     assert await read_reg(dut, x2, False) == 27
     await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.misa).encode())
     assert await read_reg(dut, x1, False) == 0x40000014
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.time - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 39 // 8
+
+    # Test time wrap
+    nop = send_instr(dut, InstructionNOP().encode())
+    count = (cocotb.utils.get_sim_time("ns") // 4) % 8
+    while count != 4:
+        await ClockCycles(dut.clk, 1)
+        count = (count + 1) % 8
+
+    dut.cpu.i_core.i_cycles.register.value = 0xFFFFFEFF
+
+    await nop
+    await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.time - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 0x1FFFFFFE
+    for i in range(5):
+        await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.time - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 0x20000000
+
+    nop = send_instr(dut, InstructionNOP().encode())
+    count = (cocotb.utils.get_sim_time("ns") // 4) % 8
+    while count != 4:
+        await ClockCycles(dut.clk, 1)
+        count = (count + 1) % 8
+
+    dut.cpu.i_core.i_cycles.register.value = 0xFFFFFEFF
+
+    await nop
+    await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.time - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 0x3FFFFFFE
+    for i in range(5):
+        await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.time - 0x1000).encode())
+    assert await read_reg(dut, x1, False) == 0x40000000
+
 
 @cocotb.test()
 async def test_interrupt(dut):

@@ -54,9 +54,9 @@ MRET is required to return from trap and interrupt handlers
 
 CSRs:
 - CYCLE - a 32 bit cycle counter, counts at clock/8 (once per possible instruction)
-- TIME - returns CYCLE/8, so microseconds if clocked at 64MHz, wrapping at 2^29.
+- TIME - returns CYCLE/8, so microseconds if clocked at 64MHz, wrapping at 2^32.
 - INSTRET - is implemented
-- MSTATUS - Only MIE and MPIE implemented
+- MSTATUS - Only MIE and MPIE implemented, plus a non-standard trap enable bit at bit 2.
 - MISA - read only
 - MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8
 - MIE & MIP - Custom interrupts only to give granularity, might implement MTI if there's room for a timer.  Custom interrupts:
@@ -71,13 +71,15 @@ CSRs:
 
 Immediate forms of CSR instructions are not implemented.  MEPC can only be written with CSRRW.
 
-## Double fault / trap when interrupts globally disabled
+## Double fault / trap when inside a trap or interrupt handler
 
-When entering a trap or interrupt handler further interrupts are automatically disabled - mstatus.mie is set to 0 and the old value preserved in mstatus.mpie.
+When entering a trap or interrupt handler further traps and interrupts are automatically disabled - mstatus.mie is set to 0 and the old value preserved in mstatus.mpie, and mstatus.mte is set to 0.
 
-If a subsequent trap is hit while mstatus.mie is zero, this is an unrecoverable fault - if it entered the trap handler then the value of mepc would get overwritten, as would mstatus.mpie, so there would be no way to get back to the originally interrupted state.
+If a subsequent trap is hit while mstatus.mte is zero, this is an unrecoverable fault - if it entered the trap handler then the value of mepc would get overwritten, as would mstatus.mpie, so there would be no way to get back to the originally interrupted state.
 
-Therefore, if a trap is hit while mstatus.mie is 0 then tinyQV sets pc to address 0 (same as reset), but MEPC and MCAUSE are set as normal so could be checked on reset to investigate the issue.  mstatus.mie is set to 1 and mie and the clearable bits in mip are cleared, as for reset.
+Therefore, if a trap is hit while mstatus.mte is 0 then tinyQV sets pc to address 0 (same as reset), but MEPC and MCAUSE are set as normal so could be checked on reset to investigate the issue.  mstatus.mie and mte are set to 1 and mie and the clearable bits in mip are cleared, as for reset.
+
+Having a separate trap enable bit means that it is not a double fault if a trap is hit in code that has disabled interrupts by clearing mstatus.mie.  mstatus.mte is read-only.
 
 ## QSPI memory interface
 

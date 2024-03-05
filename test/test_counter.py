@@ -18,6 +18,24 @@ async def test_mcycle(dut):
         await ClockCycles(dut.clk, 8)
         assert dut.val.value == i
 
+    await ClockCycles(dut.clk, 7)
+    dut.i_mcount.register.value = 0xFFFFFEFF
+    await ClockCycles(dut.clk, 1)
+    for i in range(16):
+        await ClockCycles(dut.clk, 7)
+        assert dut.cy_out.value == 0
+        await ClockCycles(dut.clk, 1)
+        assert dut.val.value == 0xFFFFFFEF + i
+
+    await ClockCycles(dut.clk, 7)
+    assert dut.cy_out.value == 1
+    await ClockCycles(dut.clk, 1)
+    assert dut.val.value == 0xFFFFFFFF
+    await ClockCycles(dut.clk, 7)
+    assert dut.cy_out.value == 0
+    await ClockCycles(dut.clk, 1)
+    assert dut.val.value == 0
+
 
 @cocotb.test()
 async def test_minstret(dut):

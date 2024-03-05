@@ -9,7 +9,8 @@ module tb_counter (
 
     input add,
 
-    output reg [31:0] val
+    output reg [31:0] val,
+    output reg cy
 );
 
 `ifdef COCOTB_SIM
@@ -30,10 +31,11 @@ end
         end
 
     wire [3:0] data;
-    tinyqv_counter i_mcount(clk, rstn, add, last_counter[4:2], data);
+    tinyqv_counter i_mcount(clk, rstn, add, last_counter[4:2], data, cy_out);
 
     always @(posedge clk) begin
         val[last_counter+:4] <= data;
+        if (last_counter[4:2] == 3'b111) cy <= cy_out;
     end
 
 endmodule
