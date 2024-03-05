@@ -26,7 +26,17 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg    data_continue,
 
     input         data_ready,  // Transaction complete/data request can be modified.
-    input  [31:0] data_in
+    input  [31:0] data_in,
+
+    output        debug_instr_complete,
+    output        debug_instr_valid,
+    output        debug_interrupt_pending,
+    output        debug_branch,
+    output        debug_early_branch,
+    output        debug_ret,
+    output        debug_reg_wen,
+    output        debug_counter_0,
+    output [3:0] debug_rd
 );
 
     // Decoder interface
@@ -310,7 +320,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         return_addr,
 
         interrupt_req,
-        interrupt_pending
+        interrupt_pending,
+
+        debug_reg_wen,
+        debug_rd
         );
 
     /////// Instruction fetch ///////
@@ -400,5 +413,14 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign instr = instr_valid ? {instr_data[next_pc_offset_hi], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset_hi], instr_data[pc_offset]};
     assign pc = {8'h00, instr_data_start, pc_offset, 1'b0};
     assign next_pc_for_core = {8'h00, next_pc};
+
+    // Debugging
+    assign debug_instr_complete = instr_complete;
+    assign debug_instr_valid = instr_valid;
+    assign debug_interrupt_pending = interrupt_pending;
+    assign debug_branch = branch;
+    assign debug_early_branch = early_branch;
+    assign debug_ret = is_ret;
+    assign debug_counter_0 = (counter_hi == 3'b000);
 
 endmodule

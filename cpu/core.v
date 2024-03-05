@@ -46,7 +46,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output [23:1] return_addr, // On count 7 this is the low 24 bits of x1
 
     input [3:0] interrupt_req,
-    output interrupt_pending
+    output interrupt_pending,
+
+    output       debug_reg_wen,
+    output [3:0] debug_rd
 );
 
     ///////// Register file /////////
@@ -425,5 +428,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             default: csr_read = 4'b0000;
         endcase
     end
+
+
+    ////////// Debug //////////
+    assign debug_reg_wen = wr_en;
+    assign debug_rd = data_rd;
 
 endmodule

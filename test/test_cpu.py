@@ -287,6 +287,7 @@ async def test_branch(dut):
 @cocotb.test()
 async def test_csr(dut):
     await start(dut)
+    start_sim_time = cocotb.utils.get_sim_time("ns")
 
     await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.cycle - 0x1000).encode())
     assert await read_reg(dut, x1, False) == 3
@@ -305,8 +306,8 @@ async def test_csr(dut):
 
     # Test time wrap
     nop = send_instr(dut, InstructionNOP().encode())
-    count = (cocotb.utils.get_sim_time("ns") // 4) % 8
-    while count != 4:
+    count = ((cocotb.utils.get_sim_time("ns") - start_sim_time) // 4) % 8
+    while count != 7:
         await ClockCycles(dut.clk, 1)
         count = (count + 1) % 8
 
@@ -322,8 +323,8 @@ async def test_csr(dut):
     assert await read_reg(dut, x1, False) == 0x20000000
 
     nop = send_instr(dut, InstructionNOP().encode())
-    count = (cocotb.utils.get_sim_time("ns") // 4) % 8
-    while count != 4:
+    count = ((cocotb.utils.get_sim_time("ns") - start_sim_time) // 4) % 8
+    while count != 7:
         await ClockCycles(dut.clk, 1)
         count = (count + 1) % 8
 

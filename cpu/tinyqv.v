@@ -30,7 +30,23 @@ module tinyQV (
 
     output        spi_flash_select,
     output        spi_ram_a_select,
-    output        spi_ram_b_select
+    output        spi_ram_b_select,
+
+    output        debug_instr_complete,
+    output        debug_instr_ready,
+    output        debug_instr_valid,
+    output        debug_fetch_restart,
+    output        debug_data_ready,
+    output        debug_interrupt_pending,
+    output        debug_branch,
+    output        debug_early_branch,
+    output        debug_ret,
+    output        debug_reg_wen,
+    output        debug_counter_0,
+    output        debug_data_continue,
+    output        debug_stall_txn,
+    output        debug_stop_txn,
+    output  [3:0] debug_rd
 );
 
   // CPU to memory controller wiring
@@ -87,7 +103,17 @@ module tinyQV (
         .data_continue(qv_data_continue),
 
         .data_ready(qv_data_ready),
-        .data_in(qv_data_from_read)
+        .data_in(qv_data_from_read),
+
+        .debug_instr_complete(debug_instr_complete),
+        .debug_instr_valid(debug_instr_valid),
+        .debug_interrupt_pending(debug_interrupt_pending),
+        .debug_branch(debug_branch),
+        .debug_early_branch(debug_early_branch),
+        .debug_ret(debug_ret),
+        .debug_reg_wen(debug_reg_wen),
+        .debug_counter_0(debug_counter_0),
+        .debug_rd(debug_rd)
     );
 
   tinyqv_mem_ctrl mem(
@@ -118,7 +144,15 @@ module tinyQV (
         .spi_flash_select(spi_flash_select),
         .spi_ram_a_select(spi_ram_a_select),
         .spi_ram_b_select(spi_ram_b_select),
-        .spi_clk_out(spi_clk_out)
+        .spi_clk_out(spi_clk_out),
+
+        .debug_stall_txn(debug_stall_txn),
+        .debug_stop_txn(debug_stop_txn)
     );
+
+    assign debug_instr_ready = instr_ready;
+    assign debug_fetch_restart = instr_fetch_restart;
+    assign debug_data_ready = qv_data_ready;
+    assign debug_data_continue = qv_data_continue;
 
 endmodule
