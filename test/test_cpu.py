@@ -337,7 +337,7 @@ async def test_interrupt(dut):
     await send_instr(dut, InstructionMRET().encode())
     await expect_branch(dut, 0x11C)
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
-    assert await read_reg(dut, x2, False) == 0x88
+    assert await read_reg(dut, x2, False) == 0x8C
 
     # Raise a persistent interrupt
     dut.interrupt_req.value = 4
@@ -363,7 +363,7 @@ async def test_interrupt(dut):
     await send_instr(dut, InstructionMRET().encode())
     await expect_branch(dut, 0x13C)
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
-    assert await read_reg(dut, x2, False) == 0x88
+    assert await read_reg(dut, x2, False) == 0x8C
 
     # Enable and assert interrupt
     await send_instr(dut, InstructionLUI(x1, 0x20).encode())
@@ -387,7 +387,25 @@ async def test_interrupt(dut):
     assert await read_reg(dut, x2, False) == 0
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mie).encode())
     assert await read_reg(dut, x2, False) == 0
-    
+
+    # Disable interrupts and then break, this is OK
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0xC
+    await send_instr(dut, InstructionADDI(x1, x0, 0x8).encode())
+    await send_instr(dut, InstructionCSRRC(x0, x1, csrnames.mstatus).encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x4
+    await send_instr(dut, 0x00100073) # EBREAK
+    await expect_branch(dut, 4)
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x3
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mstatus).encode())
+    assert await read_reg(dut, x2, False) == 0x0
+
+    # A second break is a double fault
+    await send_instr(dut, 0x00100073) # EBREAK
+    await expect_branch(dut, 0)
+
 
 @cocotb.test()
 async def test_context(dut):

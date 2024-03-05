@@ -345,7 +345,7 @@ async def test_trap(dut):
     dut.pc.value = 0x8
 
     await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x8
+    assert await get_reg_value(dut, x1) == 0xC
     await send_instr(dut, InstructionECALL().encode())
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x4
@@ -360,7 +360,7 @@ async def test_trap(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x8
     await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x88
+    assert await get_reg_value(dut, x1) == 0x8C
 
     dut.pc.value = 0x723456
     await send_instr(dut, 0x00100073)   # InstructionEBREAK().encode()
@@ -378,7 +378,7 @@ async def test_trap(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x723456 + 0x114
     await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x88
+    assert await get_reg_value(dut, x1) == 0x8C
 
 @cocotb.test()
 async def test_shift(dut):

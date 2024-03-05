@@ -214,7 +214,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         tmp_data_shift = 1;
         if (is_exception)
-            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap && mstatus_mie, 2'b00} : 4'b0000;
+            tmp_data_in = (counter == 0) ? {is_interrupt, is_trap && mstatus_mte, 2'b00} : 4'b0000;
         else if (is_shift)
             tmp_data_in = data_rs1;
         else if (is_mul)
@@ -298,13 +298,13 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    // mstatus_mie is cleared while handling a trap, so need to latch double fault on counter==0.
+    // mstatus_mte is cleared while handling a trap, so need to latch double fault on counter==0.
     reg is_double_fault_r;
     always @(posedge clk) begin
         if (counter == 0)
-            is_double_fault_r <= is_trap && !mstatus_mie;
+            is_double_fault_r <= is_trap && !mstatus_mte;
     end
-    wire is_double_fault = (counter == 0 && is_trap && !mstatus_mie) || is_double_fault_r;
+    wire is_double_fault = (counter == 0 && is_trap && !mstatus_mte) || is_double_fault_r;
 
     reg [23:0] mepc;
     always @(posedge clk) begin
@@ -317,17 +317,22 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    reg mstatus_mte;   // Trap enable - this is non-standard, but allows trapping without
+                       //               double fault while interrupts are disabled.
     reg mstatus_mie;   // Interrupt enable
     reg mstatus_mpie;  // Prior interrupt enable (whether interrupts were enabled on entry to trap)
     always @(posedge clk) begin
         if (!rstn || is_double_fault) begin
+            mstatus_mte <= 1;
             mstatus_mie <= 1;
             mstatus_mpie <= 0;
         end else if (counter == 0 && (is_exception)) begin
             mstatus_mpie <= mstatus_mie;
             mstatus_mie <= 0;
+            mstatus_mte <= 0;
         end else if (is_mret) begin
             mstatus_mie <= mstatus_mpie;
+            mstatus_mte <= 1;
         end else if (imm_lo == 12'h300) begin
             if (counter == 0) begin
                 if (is_csr_write) mstatus_mie <= data_rs1[3];
@@ -380,7 +385,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         case (imm_lo) 
             // mstatus
-            12'h300: csr_read = (counter == 0) ? {mstatus_mie, 3'b000} :
+            12'h300: csr_read = (counter == 0) ? {mstatus_mie, mstatus_mte, 2'b00} :
                                 (counter == 1) ? {mstatus_mpie, 3'b000} :
                                                  4'b0000;
 
