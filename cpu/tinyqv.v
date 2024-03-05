@@ -81,9 +81,14 @@ module tinyQV (
   assign data_read_n =     !is_mem ? qv_data_read_n  : 2'b11;
   assign data_out = qv_data_to_write;
 
+  // Use a positive edge triggered reset for the CPU, to improve timing
+  // The CPU doesn't use async reset.
+  reg rst_reg_n;
+  always @(posedge clk) rst_reg_n <= rstn;
+
   tinyqv_cpu cpu(
         .clk(clk),
-        .rstn(rstn),
+        .rstn(rst_reg_n),
 
         .instr_addr(instr_addr),
         .instr_fetch_restart(instr_fetch_restart),
