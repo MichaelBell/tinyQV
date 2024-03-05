@@ -49,6 +49,8 @@ async def test_load(dut):
         assert dut.rs1.value == base_reg
         assert dut.rd.value == reg
 
+        assert dut.additional_mem_ops.value == 0
+
     def encode_clw(reg, base_reg, imm):
         scrambled = (((imm << (10 - 3)) & 0b1110000000000) |
                      ((imm << ( 6 - 2)) & 0b0000001000000) |
@@ -115,6 +117,49 @@ async def test_load(dut):
         
         assert dut.rs1.value == base_reg
         assert dut.rd.value == reg
+
+    def encode_lw2(reg, base_reg, imm):
+        instr = InstructionLW(reg, base_reg, imm).encode()
+        return instr | (1 << 12)
+
+    def encode_lw4(reg, base_reg, imm):
+        instr = InstructionLW(reg, base_reg, imm).encode()
+        return instr | (7 << 12)
+
+    ops = [
+        (encode_lw2, 1),
+        (encode_lw4, 3)
+    ]
+
+    for i in range(100):
+        reg = random.randint(0, 15)
+        base_reg = random.randint(0, 15)
+        offset = random.randint(-2048, 2047)
+        op = random.choice(ops)
+        dut.instr.value = op[0](reg, base_reg, offset)
+        await Timer(1, "ns")
+
+        assert dut.is_load.value == 1
+        assert dut.is_alu_imm.value == 0
+        assert dut.is_auipc.value == 0
+        assert dut.is_store.value == 0
+        assert dut.is_alu_reg.value == 0
+        assert dut.is_lui.value == 0
+        assert dut.is_branch.value == 0
+        assert dut.is_jalr.value == 0
+        assert dut.is_jal.value == 0
+        assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
+
+        assert dut.imm.value.signed_integer == offset
+        assert dut.alu_op.value == 0  # ADD
+        assert dut.mem_op.value == 2
+        
+        assert dut.rs1.value == base_reg
+        assert dut.rd.value == reg
+
+        assert dut.additional_mem_ops.value == op[1]
+        assert dut.mem_op_increment_reg == 1
 
 
 @cocotb.test()
@@ -619,6 +664,53 @@ async def test_store(dut):
         assert dut.rs1.value == base_reg
         assert dut.rs2.value == reg
 
+    def encode_sw2(base_reg, reg, imm):
+        instr = InstructionSW(base_reg, reg, imm).encode()
+        return instr | (1 << 12)
+
+    def encode_sw4(base_reg, reg, imm):
+        instr = InstructionSW(base_reg, reg, imm).encode()
+        return instr | (7 << 12)
+
+    def encode_sw4n(base_reg, reg, imm):
+        instr = InstructionSW(base_reg, reg, imm).encode()
+        return instr | (6 << 12)
+
+    ops = [
+        (encode_sw2, 1, 1),
+        (encode_sw4, 3, 1),
+        (encode_sw4n, 3, 0)
+    ]
+
+    for i in range(200):
+        reg = random.randint(0, 15)
+        base_reg = random.randint(0, 15)
+        offset = random.randint(-2048, 2047)
+        op = random.choice(ops)
+        dut.instr.value = op[0](base_reg, reg, offset)
+        await Timer(1, "ns")
+
+        assert dut.is_load.value == 0
+        assert dut.is_alu_imm.value == 0
+        assert dut.is_auipc.value == 0
+        assert dut.is_store.value == 1
+        assert dut.is_alu_reg.value == 0
+        assert dut.is_lui.value == 0
+        assert dut.is_branch.value == 0
+        assert dut.is_jalr.value == 0
+        assert dut.is_jal.value == 0
+        assert dut.is_system.value == 0
+        assert dut.instr_len.value == 4
+
+        assert dut.imm.value.signed_integer == offset
+        assert dut.alu_op.value == 0  # ADD
+        assert dut.mem_op.value == 2
+        
+        assert dut.rs1.value == base_reg
+        assert dut.rs2.value == reg
+
+        assert dut.additional_mem_ops.value == op[1]
+        assert dut.mem_op_increment_reg == op[2]
 
 @cocotb.test()
 async def test_lui(dut):

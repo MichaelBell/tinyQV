@@ -30,7 +30,8 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     output reg [REG_ADDR_BITS-1:0] rs2,
     output reg [REG_ADDR_BITS-1:0] rd,
 
-    output reg [2:0] additional_mem_ops
+    output reg [2:0] additional_mem_ops,
+    output reg       mem_op_increment_reg
 );
 
     wire [31:0] Uimm = {    instr[31],   instr[30:12], {12{1'b0}}};
@@ -53,6 +54,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
 
     always @(*) begin
         additional_mem_ops = 3'b000;
+        mem_op_increment_reg = 1;
         is_ret = 0;
 
         if (instr[1:0] == 2'b11) begin
@@ -77,7 +79,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             // Determine alu op
             if (is_load || is_auipc || is_store || is_jalr || is_jal) alu_op = 4'b0000;  // ADD
             else if (is_branch) alu_op = {1'b0, !instr[14], instr[14:13]};
-            else if (instr[25] && instr[5]) alu_op = 4'b1010;
+            else if (instr[26] && instr[5]) alu_op = 4'b1010;
             else alu_op = {instr[30] && (instr[5] || instr[13:12] == 2'b01),instr[14:12]};
 
             mem_op = instr[14:12];
@@ -85,6 +87,12 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                 // TinyQV custom: 2 or 4 loads/stores to consecutive registers
                 mem_op = 3'b010;
                 additional_mem_ops = {1'b0, instr[14], 1'b1};
+            end
+            if (is_store && instr[14:12] == 3'b110) begin
+                // TinyQV custom: 4 stores from the same reg (fast memset)
+                mem_op = 3'b010;
+                additional_mem_ops = {1'b0, instr[14], 1'b1};
+                mem_op_increment_reg = 0;
             end
 
             rs1 = instr[15+:REG_ADDR_BITS];
@@ -256,7 +264,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                         rd  = instr[10:7];
                     end
                 end
-                5'b10101: begin // MUL
+                5'b10101: begin // MUL16
                     is_alu_reg = 1;
                     alu_op = 4'b1010;
                     rs1 = instr[10:7];

@@ -30,7 +30,10 @@ module tb_decode (
 
     output [3:0] rs1,
     output [3:0] rs2,
-    output [3:0] rd
+    output [3:0] rd,
+
+    output [2:0] additional_mem_ops,
+    output       mem_op_increment_reg
 );
 
 `ifdef COCOTB_SIM
@@ -63,7 +66,10 @@ end
 
         rs1,
         rs2,
-        rd
+        rd,
+
+        additional_mem_ops,
+        mem_op_increment_reg
              );
 
     assign instr_len[0] = 1'b0;

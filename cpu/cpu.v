@@ -65,6 +65,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [3:0] rs2_de;
     wire [3:0] rd_de;
     wire [2:0] additional_mem_ops_de;
+    wire mem_op_increment_reg_de;
 
     tinyqv_decoder i_decoder(
         instr, 
@@ -89,7 +90,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         rs1_de,
         rs2_de,
         rd_de,
-        additional_mem_ops_de);
+        additional_mem_ops_de,
+        mem_op_increment_reg_de);
 
     reg [31:0] imm;
 
@@ -112,6 +114,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [3:0] rs2;
     reg [3:0] rd;
     reg [2:0] additional_mem_ops;
+    reg mem_op_increment_reg;
 
     reg interrupt_core;
 
@@ -148,7 +151,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             additional_mem_ops <= 3'b000;
             interrupt_core <= 0;
         end else if (any_additional_mem_ops && instr_complete_core && !stall_core) begin
-            rs2 <= rs2 + 4'b0001;
+            rs2 <= rs2 + {3'b000, mem_op_increment_reg};
             rd <= rd + 4'b0001;
             additional_mem_ops <= additional_mem_ops - 3'b001;
         end else if (instr_complete_core && interrupt_pending) begin
@@ -175,6 +178,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 rs2 <= rs2_de;
                 rd <= rd_de;
                 additional_mem_ops <= additional_mem_ops_de;
+                mem_op_increment_reg <= mem_op_increment_reg_de;
                 instr_valid <= !branch && !is_ret_de;
             end else begin
                 instr_valid <= 0;
