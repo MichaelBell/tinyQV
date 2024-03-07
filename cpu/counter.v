@@ -27,6 +27,8 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
     wire [31:4] reg_buf;
     `ifdef SIM
     buf #1 i_regbuf[31:4] (reg_buf, {register[3:0], register[31:8]});
+    `elsif ICE40
+    assign reg_buf = {register[3:0], register[31:8]};
     `else
     sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
     `endif
