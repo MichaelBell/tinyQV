@@ -1,3 +1,3 @@
 #!/bin/bash
 
-verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-MULTITOP *.v
+verilator --lint-only -DSIM --timing -Wall -Wno-DECLFILENAME -Wno-MULTITOP *.v

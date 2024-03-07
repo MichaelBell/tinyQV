@@ -47,9 +47,15 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                         registers[i][3:0] <= data_rd;
                     else
                         registers[i][3:0] <= registers[i][7:4];
-                    
-                    registers[i][31:4] <= {registers[i][3:0], registers[i][31:8]};
                 end
+
+                wire [31:4] reg_buf;
+                `ifdef SIM
+                buf #1 i_regbuf[31:4] (reg_buf, {registers[i][3:0], registers[i][31:8]});
+                `else
+                sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );
+                `endif
+                always @(posedge clk) registers[i][31:4] <= reg_buf;
 
                 assign reg_access[i] = registers[i][7:4];
             end

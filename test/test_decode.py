@@ -391,6 +391,14 @@ async def test_alu_imm(dut):
         assert dut.rs1.value == 2
         assert dut.rd.value == 2
 
+class InstructionMUL16:
+    def __init__(self, rd, rs1, rs2):
+        self.rd = rd
+        self.rs1 = rs1
+        self.rs2 = rs2
+
+    def encode(self):
+        return InstructionMUL(self.rd, self.rs1, self.rs2).encode() ^ 0x6000000
 
 @cocotb.test()
 async def test_alu_reg(dut):
@@ -411,6 +419,7 @@ async def test_alu_reg(dut):
         (InstructionSLL, 0b0001, False),
         (InstructionSRL, 0b0101, False),
         (InstructionSRA, 0b1101, False),
+        (InstructionMUL16, 0b1010, False),
     ]
 
     for i in range(800):
@@ -475,6 +484,34 @@ async def test_alu_reg(dut):
         assert dut.alu_op.value == 0
 
         assert dut.rs1.value == (0 if move else dest_reg)
+        assert dut.rs2.value == src_reg
+        assert dut.rd.value == dest_reg
+
+    def encode_cmul16(dest_reg, src_reg):
+        return encode_cr(dest_reg, src_reg, 0xA002)
+    
+    for i in range(100):
+        src_reg = random.randint(1, 15)
+        dest_reg = random.randint(1, 15)
+
+        dut.instr.value = encode_cmul16(dest_reg, src_reg)
+        await Timer(1, "ns")
+
+        assert dut.is_load.value == 0
+        assert dut.is_alu_imm.value == 0
+        assert dut.is_auipc.value == 0
+        assert dut.is_store.value == 0
+        assert dut.is_alu_reg.value == 1
+        assert dut.is_lui.value == 0
+        assert dut.is_branch.value == 0
+        assert dut.is_jalr.value == 0
+        assert dut.is_jal.value == 0
+        assert dut.is_system.value == 0
+        assert dut.instr_len.value == 2
+
+        assert dut.alu_op.value == 0b1010
+
+        assert dut.rs1.value == dest_reg
         assert dut.rs2.value == src_reg
         assert dut.rd.value == dest_reg
 

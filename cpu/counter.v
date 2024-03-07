@@ -22,8 +22,15 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
         end else begin
             {cy, register[3:0]} <= increment_result;
         end
-        register[31:4] <= {register[3:0], register[31:8]};
     end
+
+    wire [31:4] reg_buf;
+    `ifdef SIM
+    buf #1 i_regbuf[31:4] (reg_buf, {register[3:0], register[31:8]});
+    `else
+    sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
+    `endif
+    always @(posedge clk) register[31:4] <= reg_buf;
 
     assign data = register[3 + OUTPUT_WIDTH:4];
     assign cy_out = increment_result[4];
