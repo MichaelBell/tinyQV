@@ -130,7 +130,7 @@ out7 - GPIO
 
 Using the same UART as in nanoV, configured for 115200 when running at 64MHz.  Not loads of point in extra buffering as could only afford another byte or two and you normally printf a bunch of chars together.
 
-Simple SPI controller is implemted.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
+Simple SPI controller is implemented.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
 
 ## FPGA testing
 
