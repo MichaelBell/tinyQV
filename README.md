@@ -112,7 +112,7 @@ The same UART as in nanoV, configured for 115200 when running at 64MHz.
 
 An additional TX only UART for debugging, the SDK outputs stderr to this, its configured for 4Mbit at 64MHz clock.
 
-Simple SPI controller.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
+A simple SPI controller is implemented.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
 
 ## Instruction timing
 
