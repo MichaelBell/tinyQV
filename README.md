@@ -100,41 +100,44 @@ Overall this means that stores to RAM are likely to cost at least 20 SPI clocks 
 0x0000000 - 0x0FFFFFF: Flash (CS0)
 0x1000000 - 0x17FFFFF: RAM A (CS1)
 0x1800000 - 0x1FFFFFF: RAM B (CS2)
-0x8000000 = 0x80007FF: Peripheral registers (TBD)
+0x8000000 = 0x80007FF: Peripheral registers (see TT06 repo)
 
 ## Pinout
 
-```
-bidis - QSPI PMOD as above
-
-in0 - Interrupt 0
-in1 - Interrupt 1
-in2 - SPI MISO
-in3 - UART RX
-in4 - GPIO
-in5 - GPIO
-in6 - GPIO
-in7 - GPIO
-
-out0 - SPI CS
-out1 - SPI SCK
-out2 - SPI MOSI
-out3 - GPIO (DC)
-out4 - UART TX
-out5 - UART RTS
-out6 - GPIO
-out7 - GPIO
-```
+See [TT06 repo](https://github.com/MichaelBell/tt06-tinyQV/)
 
 ## Peripherals
 
-Using the same UART as in nanoV, configured for 115200 when running at 64MHz.  Not loads of point in extra buffering as could only afford another byte or two and you normally printf a bunch of chars together.
+The same UART as in nanoV, configured for 115200 when running at 64MHz.
 
-Simple SPI controller is implemted.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
+An additional TX only UART for debugging, the SDK outputs stderr to this, its configured for 4Mbit at 64MHz clock.
+
+Simple SPI controller.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
+
+## Instruction timing
+
+Instruction timings below are in cycles of the internal 32-bit registers, which rotate 4 bits per clock, so each cycle is 8 clocks.
+
+Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 cycle/instruction throughput can only be maintained with compressed instructions.
+
+| Instruction | Cycles |
+| ----------- | ------ |
+| AND/OR/XOR  | 1      |
+| ADD/SUB     | 1      |
+| LUI/AUIPC   | 1      |
+| SLT         | 1      |
+| Shifts      | 2      |
+| Mul (32x16) | 2      |
+| JAL         | 5      |
+| RET         | 5      |
+| Other JALR  | 6      |
+| Branch (not taken) | 1 |
+| Branch (taken) | 7   |
+| Store to peripheral   | 1 | 
+| Store to PSRAM        | ~5    |
+| Load from peripheral  | 3 |
+| Load from flash/PSRAM | ~7    |
 
 ## FPGA testing
 
-Plan is to do initial testing with the Pico-Ice.  Advantages of this:
-- The FPGA has access to 4MB QSPI flash and 8MB QSPI PSRAM
-- You can use the whole of the flash, because the FPGA bitstream can be loaded from the separate RP2040 flash
-- RP2040 can work as a logic analyser for debugging, and is good for testing UART, SPI and GPIO peripherals too.
+Initial testing has been done with a Pico-Ice.  This allows things to be set up in a similar way to the TT demo board, with MicroPython loading the program into the flash on the QSPI PMOD, and then starting the FPGA.  See the pico-ice directory for implementation.
