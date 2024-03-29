@@ -252,7 +252,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             no_write_in_progress <= data_write_n == 2'b11;
         end
         
-        if (is_load) begin
+        if (is_load && !instr_complete) begin
             if (address_ready) begin
                 data_read_n <= mem_op[1:0]; 
                 load_started <= 1;

@@ -12,8 +12,22 @@ set_io --warn-no-port sd[3]     18
 set_io --warn-no-port ram_a_cs  26
 set_io --warn-no-port ram_b_cs  20
 
-set_io --warn-no-port uart_txd  28
-set_io --warn-no-port uart_rxd  32
-set_io --warn-no-port uart_rts  36
+set_io --warn-no-port ui_in[0]  43
+set_io --warn-no-port ui_in[1]  38
+set_io --warn-no-port ui_in[2]  34
+set_io --warn-no-port ui_in[3]  31
+set_io --warn-no-port ui_in[4]  42
+set_io --warn-no-port ui_in[5]  36
+set_io --warn-no-port ui_in[6]  32
+set_io --warn-no-port ui_in[7]  28
+
+set_io --warn-no-port uo_out[0] 4
+set_io --warn-no-port uo_out[1] 2
+set_io --warn-no-port uo_out[2] 47
+set_io --warn-no-port uo_out[3] 45
+set_io --warn-no-port uo_out[4] 3
+set_io --warn-no-port uo_out[5] 48
+set_io --warn-no-port uo_out[6] 46
+set_io --warn-no-port uo_out[7] 44
 
 set_frequency clk 14
