@@ -44,6 +44,8 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     wire [31:0] CLWSPimm     = {24'b0, instr[3:2], instr[12], instr[6:4], 2'b00};
     wire [31:0] CSWSPimm     = {24'b0, instr[8:7], instr[12:9], 2'b00};
     wire [31:0] CLSWimm      = {25'b0, instr[5], instr[12:10], instr[6], 2'b00};  // LW and SW
+    wire [31:0] CLSHimm      = {30'b0, instr[5], 1'b0};  // LH(U) and SH
+    wire [31:0] CLSBimm      = {30'b0, instr[5], instr[6]};  // LBU and SB
     wire [31:0] CJimm        = {{21{instr[12]}}, instr[8], instr[10:9], instr[6], instr[7], instr[2], instr[11], instr[5:3], 1'b0};
     wire [31:0] CBimm        = {{24{instr[12]}}, instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
     wire [31:0] CALUimm      = {{27{instr[12]}}, instr[6:2]};          // ADDI, LI, shifts, ANDI
@@ -130,6 +132,19 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                     rs1 = {1'b1, instr[9:7]};
                     rd  = {1'b1, instr[4:2]};
                 end 
+                5'b00100: begin // Load/store byte or halfword
+                    imm = instr[10] ? CLSHimm : CLSBimm;
+                    rs1 = {1'b1, instr[9:7]};
+                    if (instr[11]) begin
+                        is_store = 1;
+                        mem_op = {2'b00, instr[10]};
+                        rs2 = {1'b1, instr[4:2]};
+                    end else begin
+                        is_load = 1;
+                        mem_op = {~(instr[10] & instr[6]), 1'b0, instr[10]};
+                        rd = {1'b1, instr[4:2]};
+                    end
+                end
                 5'b00110: begin // SW
                     is_store = 1;
                     mem_op = 3'b010;
@@ -185,6 +200,19 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                         end else begin
                             alu_op = 4'b0111;
                         end
+                    end else if (instr[12]) begin
+                        is_alu_imm = 1;
+                        case (instr[4:2])
+                            3'b101: begin  // NOT
+                                    alu_op = 4'b0100; // XOR
+                                    imm = 32'hffffffff;
+                            end
+                            default: begin // ZEXT
+                                    alu_op = 4'b0111; // AND
+                                    imm = {16'h0000, {8{instr[3]}}, 8'hff};
+                            end
+                        endcase
+                        
                     end else begin
                         is_alu_reg = 1;
                         case (instr[6:5])
