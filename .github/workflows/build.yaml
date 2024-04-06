@@ -12,6 +12,18 @@ jobs:
       with:
           submodules: recursive
 
+    - name: Checkout uf2-utils
+      uses: actions/checkout@v4
+      with:
+        repository: tinyvision-ai-inc/uf2-utils
+        path: uf2-utils
+
+    - name: Install uf2-utils
+      run: |
+        cd uf2-utils
+        make
+        make install
+  
     # install oss fpga tools
     - name: install oss-cad-suite
       uses: YosysHQ/setup-oss-cad-suite@v3
