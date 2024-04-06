@@ -44,6 +44,8 @@ Fullish RV32EC, with a few exceptions:
 
 Only M mode is supported.
 
+Zcb is implemented, along with a few custom instructions (to document).
+
 Unlike nanoV, EBREAK and ECALL will be implemented, trapping with cause 3 and 11 respectively.
 
 Hardcoding gp and tp - it doesn't seem to have caused any trouble in running general code on nanoV, and is similar to the "normal" ABI usage of these registers, so it seems a sensible saving.

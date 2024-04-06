@@ -270,7 +270,8 @@ module tinyQV_top (
         .busy(spi_busy),
 
         .set_config(connect_peripheral == PERI_SPI_STATUS && write_n != 2'b11),
-        .divider_in(data_to_write[1:0])
+        .divider_in(data_to_write[1:0]),
+        .read_latency_in(data_to_write[2])
     );
 
     // Debug

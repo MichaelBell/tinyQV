@@ -23,8 +23,8 @@ jobs:
 
     - name: build
       run: |
-        cd iceFUN && make
+        cd pico_ice && make
 
     - name: stats
       run: |
-        cd iceFUN && make stats >> $GITHUB_STEP_SUMMARY
+        cd pico_ice && make stats >> $GITHUB_STEP_SUMMARY
