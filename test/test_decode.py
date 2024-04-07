@@ -923,7 +923,7 @@ async def test_lui(dut):
         reg = 2
         while reg == 2:
             reg = random.randint(1, 15)
-        imm = random.randint(0, 0x3F)
+        imm = random.randint(-0x20, 0x1F)
         dut.instr.value = encode_clui(reg, imm)
         await Timer(1, "ns")
 
@@ -939,7 +939,7 @@ async def test_lui(dut):
         assert dut.is_system.value == 0
         assert dut.instr_len.value == 2
 
-        assert dut.imm.value == imm << 12
+        assert dut.imm.value == (imm << 12) & 0xffffffff
         
         assert dut.rd.value == reg
 

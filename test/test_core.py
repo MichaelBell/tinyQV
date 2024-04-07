@@ -174,6 +174,13 @@ async def test_add(dut):
     await send_instr(dut, InstructionADDI(x1, x2, 1).encode())
     assert await get_reg_value(dut, x1) == 7
 
+    await send_instr(dut, InstructionLUI(x1, 0xffffc).encode())
+    await send_instr(dut, InstructionADDI(x1, x0, 204).encode())
+    await send_instr(dut, InstructionLUI(x2, 4).encode())
+    await send_instr(dut, InstructionADDI(x2, x0, -204).encode())
+    await send_instr(dut, InstructionADD(x1, x1, x2).encode())
+    assert await get_reg_value(dut, x1) == 0
+
 
 @cocotb.test()
 async def test_lui(dut):
@@ -286,6 +293,9 @@ async def test_branch(dut):
     await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), 1)
     assert dut.branch.value == 1
     dut.pc.value = 0x28
+    await send_instr(dut, InstructionADDI(x1, x0, 0x31).encode())
+    await send_instr(dut, InstructionBLTU(x0, x1, -0x20).encode(), 1)
+    assert dut.branch.value == 1
 
     ops = [
         (InstructionBEQ, lambda a, b: a == b),
