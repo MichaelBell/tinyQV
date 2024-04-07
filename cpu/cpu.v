@@ -134,6 +134,19 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [4:2] counter_hi;
     wire [4:0] counter = {counter_hi, 2'b00};
 
+    reg no_write_in_progress;
+    reg load_started;
+    wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
+    wire instr_complete = instr_complete_core && !stall_core && !any_additional_mem_ops;
+
+    reg [2:1] pc_offset;
+    reg [3:1] instr_write_offset;
+    reg was_early_branch;
+
+    wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
+    wire [3:1] instr_avail_len = was_early_branch ? 3'b000 :
+                                                    instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
+
     always @(posedge clk) begin
         if (!rstn) begin
             instr_valid <= 0;
@@ -234,8 +247,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    reg no_write_in_progress;
-    reg load_started;
     always @(posedge clk) begin
         if (!rstn) begin
             data_write_n <= 2'b11;
@@ -273,9 +284,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
-
-    reg was_early_branch;
     always @(posedge clk) begin
         if (!rstn)
             was_early_branch <= 0;
@@ -335,19 +343,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [15:0] instr_data[0:3];
 
     reg [23:3] instr_data_start;
-
-    reg [2:1] pc_offset;
-    reg [3:1] instr_write_offset;
-
     reg instr_fetch_running;
 
-    wire instr_complete = instr_complete_core && !stall_core && !any_additional_mem_ops;
-
-    wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
     wire [23:0] next_pc = {instr_data_start, 3'b000} + {20'd0, next_pc_offset, 1'b0};
     wire pc_wrap = next_pc_offset[3] && instr_complete;
-    wire [3:1] instr_avail_len = was_early_branch ? 3'b000 : 
-                                                    instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
 
     wire [3:1] next_instr_write_offset = instr_write_offset + (instr_ready && instr_fetch_running ? 3'b001 : 3'b000) - (pc_wrap ? 3'b100 : 3'b000);
     wire next_instr_stall = (next_instr_write_offset == {1'b1, pc_offset});

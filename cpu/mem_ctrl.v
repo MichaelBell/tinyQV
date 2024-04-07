@@ -46,6 +46,24 @@ module tinyqv_mem_ctrl (
     reg stop_txn;
     reg [1:0] data_txn_n;
     reg [1:0] data_txn_len;
+
+    reg qspi_write_done;
+    wire qspi_busy;
+    reg instr_active;
+
+    wire is_instr = instr_active || start_instr;
+    wire [1:0] txn_len = is_instr ? 2'b01 : data_txn_len;
+    wire [24:0] addr_in = is_instr ? {1'b0, instr_addr, 1'b0} : data_addr[24:0];
+    reg [31:0] qspi_data_buf;
+    reg [1:0] qspi_data_byte_idx;
+    wire qspi_data_req;
+    wire qspi_data_ready;
+    wire [7:0] qspi_data_out;
+
+    // Only stall on the last byte of an instruction
+    wire stall_txn = instr_active && instr_fetch_stall && !instr_ready && qspi_data_byte_idx == 2'b01;
+    reg data_stall;
+
     always @(*) begin
         start_instr = 0;
         start_read = 0;
@@ -82,8 +100,6 @@ module tinyqv_mem_ctrl (
     end
 
     // State
-    reg instr_active;
-
     always @(posedge clk) begin
         if (!rstn || stop_txn) begin
             instr_active <= 0;
@@ -91,19 +107,6 @@ module tinyqv_mem_ctrl (
             instr_active <= qspi_busy ? instr_active : start_instr;
         end
     end
-
-    wire is_instr = instr_active || start_instr;
-    wire [1:0] txn_len = is_instr ? 2'b01 : data_txn_len;
-    wire [24:0] addr_in = is_instr ? {1'b0, instr_addr, 1'b0} : data_addr[24:0];
-    wire qspi_busy;
-    reg [31:0] qspi_data_buf;
-    reg [1:0] qspi_data_byte_idx;
-    wire qspi_data_req;
-    wire qspi_data_ready;
-    wire [7:0] qspi_data_out;
-
-    // Only stall on the last byte of an instruction
-    wire stall_txn = instr_active && instr_fetch_stall && !instr_ready && qspi_data_byte_idx == 2'b01;
 
     wire [1:0] write_qspi_data_byte_idx = qspi_data_byte_idx + (qspi_data_req ? 2'b01 : 2'b00);
     qspi_controller q_ctrl(
@@ -165,12 +168,10 @@ module tinyqv_mem_ctrl (
     assign instr_data = {qspi_data_out, qspi_data_buf[7:0]};
     assign instr_ready = instr_active && qspi_data_ready && qspi_data_byte_idx == 2'b01;
 
-    reg qspi_write_done;
     always @(posedge clk) begin
         qspi_write_done <= qspi_data_req && qspi_data_byte_idx == data_txn_len;
     end
 
-    reg data_stall;
     always @(posedge clk) begin
         if (data_continue) begin
             if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||

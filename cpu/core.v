@@ -52,6 +52,30 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output [3:0] debug_rd
 );
 
+    // Forward declarations
+    wire last_count = (counter == 7);
+    reg [1:0] cycle;
+
+    wire is_shift = alu_op[1:0] == 2'b01;
+    wire is_mul = alu_op[3] && alu_op[1];
+
+    wire is_priv = is_system && (alu_op[2:0] == 3'b000);
+    wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
+    wire is_exception = is_trap || is_interrupt;
+    wire is_mret = is_priv && (imm_lo[9:8] == 2'b11);
+    reg [23:0] mepc;
+
+    reg mstatus_mte;   // Trap enable - this is non-standard, but allows trapping without
+                       //               double fault while interrupts are disabled.
+    reg mstatus_mie;   // Interrupt enable
+    reg mstatus_mpie;  // Prior interrupt enable (whether interrupts were enabled on entry to trap)
+
+    wire is_csr = is_system && alu_op[1:0] != 2'b00;
+    reg [3:0] csr_read;
+    wire is_csr_write = is_csr && alu_op[1:0] == 2'b01;
+    wire is_csr_set   = is_csr && alu_op[1:0] == 2'b10;
+    wire is_csr_clear = is_csr && alu_op[1:0] == 2'b11;
+
     ///////// Register file /////////
 
     wire [3:0] data_rs1;
@@ -94,8 +118,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Shifter /////////
 
-    wire is_shift = alu_op[1:0] == 2'b01;
-
     reg [4:0] shift_amt;
     always @(posedge clk) begin
         if (cycle == 0) begin
@@ -110,7 +132,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Multiplier /////////
 
-    wire is_mul = alu_op[3] && alu_op[1];
     wire [3:0] mul_out;
     tinyqv_mul #(.B_BITS(16)) multiplier(clk, data_rs1 & {4{cycle[0]}}, tmp_data[15:0], mul_out);
 
@@ -177,9 +198,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Cycle management /////////
 
-    wire last_count = (counter == 7);
-
-    reg [1:0] cycle;
     always @(posedge clk) begin
         if (!rstn) cycle <= 0;
         else if (last_count) begin
@@ -188,6 +206,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    reg load_done;
     always @(*) begin
         instr_complete = 0;
         if (last_count) begin
@@ -200,7 +219,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    reg load_done;
     always @(posedge clk) begin
         if (counter == 0)
             load_done <= load_data_ready && cycle[1] != 1'b0;
@@ -286,10 +304,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Traps and interrupts /////////    
 
-    wire is_priv = is_system && (alu_op[2:0] == 3'b000);
-    wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
-    wire is_exception = is_trap || is_interrupt;
-    wire is_mret = is_priv && (imm_lo[9:8] == 2'b11);
+    reg [17:16] mip_reg;
+    wire [19:16] mip = {interrupt_req[3:2], mip_reg};
+    reg [19:16] mie;
+
     reg [5:0] mcause;
     always @(posedge clk) begin
         if (!rstn) mcause <= 0;
@@ -319,7 +337,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
     wire is_double_fault = (counter == 0 && is_trap && !mstatus_mte) || is_double_fault_r;
 
-    reg [23:0] mepc;
     always @(posedge clk) begin
         if (counter <= 5) begin
             mepc[23:20] <= (!rstn)                             ? 4'b0000 :
@@ -330,10 +347,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    reg mstatus_mte;   // Trap enable - this is non-standard, but allows trapping without
-                       //               double fault while interrupts are disabled.
-    reg mstatus_mie;   // Interrupt enable
-    reg mstatus_mpie;  // Prior interrupt enable (whether interrupts were enabled on entry to trap)
     always @(posedge clk) begin
         if (!rstn || is_double_fault) begin
             mstatus_mte <= 1;
@@ -362,9 +375,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     // Interrupts 1 and 0 trigger on rising edge
     reg [1:0] last_interrupt_req;
 
-    reg [17:16] mip_reg;
-    wire [19:16] mip = {interrupt_req[3:2], mip_reg};
-    reg [19:16] mie;
     always @(posedge clk) begin
         if (!rstn || is_double_fault) begin
             mie <= 0;
@@ -390,11 +400,6 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// CSRs /////////    
 
-    wire is_csr = is_system && alu_op[1:0] != 2'b00;
-    reg [3:0] csr_read;
-    wire is_csr_write = is_csr && alu_op[1:0] == 2'b01;
-    wire is_csr_set   = is_csr && alu_op[1:0] == 2'b10;
-    wire is_csr_clear = is_csr && alu_op[1:0] == 2'b11;
     always @(*) begin
         case (imm_lo) 
             // mstatus

@@ -9,35 +9,20 @@
 // - UART reciever module.
 //
 
-module uart_rx(
-input  wire       clk          , // Top level system clock input.
-input  wire       resetn       , // Asynchronous active low reset.
-input  wire       uart_rxd     , // UART Recieve pin.
-output reg        uart_rts     , // UART Request to send pin.
-input  wire       uart_rx_read , // Available byte has been read and can be cleared.
-output wire       uart_rx_valid, // Valid data recieved and available.
-output wire [PAYLOAD_BITS-1:0] uart_rx_data   // The recieved data.
+module uart_rx #(parameter 
+    BIT_RATE     = 9600,       // Input bit rate of the UART line, bits / sec
+    CLK_HZ       = 50_000_000, // Clock frequency in hertz.
+    PAYLOAD_BITS = 8,          // Number of data bits recieved per UART packet.
+    STOP_BITS    = 1           // Number of stop bits indicating the end of a packet.
+) (
+    input  wire       clk          , // Top level system clock input.
+    input  wire       resetn       , // Asynchronous active low reset.
+    input  wire       uart_rxd     , // UART Recieve pin.
+    output reg        uart_rts     , // UART Request to send pin.
+    input  wire       uart_rx_read , // Available byte has been read and can be cleared.
+    output wire       uart_rx_valid, // Valid data recieved and available.
+    output wire [PAYLOAD_BITS-1:0] uart_rx_data   // The recieved data.
 );
-
-// --------------------------------------------------------------------------- 
-// External parameters.
-// 
-
-//
-// Input bit rate of the UART line.
-parameter   BIT_RATE        = 9600; // bits / sec
-
-//
-// Clock frequency in hertz.
-parameter   CLK_HZ          = 50_000_000;
-
-//
-// Number of data bits recieved per UART packet.
-parameter   PAYLOAD_BITS    = 8;
-
-//
-// Number of stop bits indicating the end of a packet.
-parameter   STOP_BITS       = 1;
 
 // -------------------------------------------------------------------------- 
 // Internal parameters.

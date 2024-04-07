@@ -90,24 +90,29 @@ module qspi_controller (
     assign busy = fsm_state != FSM_IDLE;
 
     reg stop_txn_reg;
+    wire stop_txn_now = stop_txn_reg || (stop_txn && (!is_writing || spi_clk_out));
     always @(posedge clk) begin
         if (!rstn) 
             stop_txn_reg <= 0;
         else
             stop_txn_reg <= stop_txn && !stop_txn_now;
     end
-    wire stop_txn_now = stop_txn_reg || (stop_txn && (!is_writing || spi_clk_out));
 
     reg [2:0] read_cycles_count;
 
-/* Assignments to nibbles_remaining are not easy to give the correct width for */
-/* verilator lint_off WIDTHTRUNC */
+    reg last_ram_a_sel;
+    reg last_ram_b_sel;
+    wire ram_a_block = (last_ram_a_sel == 0) && addr_in[24:23] == 2'b10;
+    wire ram_b_block = (last_ram_b_sel == 0) && addr_in[24:23] == 2'b11;
 
     always @(posedge clk) begin
         if (!rstn) begin
             delay_cycles_cfg <= spi_data_in[2:0];
         end
     end
+
+/* Assignments to nibbles_remaining are not easy to give the correct width for */
+/* verilator lint_off WIDTHTRUNC */
 
     always @(posedge clk) begin
         if (!rstn || stop_txn_now) begin
@@ -260,8 +265,6 @@ module qspi_controller (
     end
 
     // Allow 2 cycles before reselecting the same RAM
-    reg last_ram_a_sel;
-    reg last_ram_b_sel;
     always @(posedge clk) begin
         if (!rstn) begin
             last_ram_a_sel <= 1;
@@ -271,9 +274,6 @@ module qspi_controller (
             last_ram_b_sel <= spi_ram_b_select;
         end
     end
-
-    wire ram_a_block = (last_ram_a_sel == 0) && addr_in[24:23] == 2'b10;
-    wire ram_b_block = (last_ram_b_sel == 0) && addr_in[24:23] == 2'b11;
 
 
     `ifdef FORMAL
