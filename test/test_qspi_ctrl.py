@@ -30,9 +30,9 @@ async def start_read(dut):
     dut.start_read.value = 0
 
     assert select.value == 0
-    assert dut.spi_flash_select.value == 0 if dut.spi_flash_select == select else 1
-    assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
-    assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
+    assert dut.spi_flash_select.value == (0 if dut.spi_flash_select == select else 1)
+    assert dut.spi_ram_a_select.value == (0 if dut.spi_ram_a_select == select else 1)
+    assert dut.spi_ram_b_select.value == (0 if dut.spi_ram_b_select == select else 1)
     assert dut.spi_clk_out.value == 0
 
     if dut.spi_flash_select != select:
@@ -107,8 +107,8 @@ async def start_write(dut, data):
 
     assert select.value == 0
     assert dut.spi_flash_select.value == 1
-    assert dut.spi_ram_a_select.value == 0 if dut.spi_ram_a_select == select else 1
-    assert dut.spi_ram_b_select.value == 0 if dut.spi_ram_b_select == select else 1
+    assert dut.spi_ram_a_select.value == (0 if dut.spi_ram_a_select == select else 1)
+    assert dut.spi_ram_b_select.value == (0 if dut.spi_ram_b_select == select else 1)
     assert dut.spi_clk_out.value == 0
     assert dut.spi_data_oe.value == 0xF
 
