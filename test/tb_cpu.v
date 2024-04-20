@@ -16,8 +16,6 @@ module tb_cpu (
     input  [15:0] instr_data_in,
     input         instr_ready,
 
-    input  [3:0]  interrupt_req,
-
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n,
     output reg [1:0]  data_read_n,
@@ -49,8 +47,6 @@ end
         instr_fetch_stopped,
         instr_data_in,
         instr_ready,
-
-        interrupt_req,
 
         data_addr,
         data_write_n,

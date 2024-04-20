@@ -16,12 +16,7 @@ module tb_core (
     output [31:0] addr_out,
     output address_ready,
     output instr_complete,
-    output branch,
-    output [23:1] return_addr,
-
-    input interrupt,
-    input [3:0] interrupt_req,
-    output interrupt_pending
+    output branch
 );
 
 `ifdef COCOTB_SIM
@@ -43,7 +38,6 @@ end
     wire is_branch;
     wire is_jalr;
     wire is_jal;
-    wire is_ret;
     wire is_system;
 
     wire [2:1] instr_len;
@@ -66,7 +60,6 @@ end
         is_branch,
         is_jalr,
         is_jal,
-        is_ret,
         is_system,
 
         instr_len,
@@ -81,19 +74,6 @@ end
     reg [4:0] counter;
     wire [4:0] next_counter = counter + 4;
 
-    wire [3:0] data_out_slice;
-    reg [31:0] data_out_reg;
-    always @(posedge clk) begin
-        if (!rstn) begin
-            counter <= 0;
-        end else begin
-            counter <= next_counter;
-        end
-        data_out_reg[counter+:4] <= data_out_slice;
-    end
-
-    assign data_out[31:28] = data_out_slice;
-    assign data_out[27:0] = data_out_reg[27:0];
     assign addr_out[31:28] = 0;
 
     wire [31:0] next_pc = pc + {29'd0, instr_len, 1'b0};
@@ -101,8 +81,7 @@ end
     tinyqv_core core(clk,
         rstn,
         
-        imm[counter+:4],
-        imm[11:0],
+        imm,
 
         is_load,
         is_alu_imm,
@@ -115,7 +94,6 @@ end
         is_jal,
         is_system,
         1'b0,
-        interrupt,
 
         alu_op,
         mem_op,
@@ -124,21 +102,16 @@ end
         rs2,
         rd,
 
-        counter[4:2],
-        pc[counter+:4],
-        next_pc[counter+:4],
-        data_in[counter+:4],
+        pc[23:0],
+        next_pc[23:0],
+        data_in,
         load_data_ready,
 
-        data_out_slice,
+        data_out,
         addr_out[27:0],
         address_ready,
         instr_complete,
-        branch,
-        return_addr,
-
-        interrupt_req,
-        interrupt_pending
+        branch
         );
 
 endmodule

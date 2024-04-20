@@ -13,53 +13,45 @@
       0001 SLL: D = A << B
       0101 SRL: D = A >> B
       1101 SRA: D = A >> B (signed)
-
-    Multiply
-      1010 MUL: D = B[15:0] * A
 */
+`default_nettype none
 
 module tinyqv_alu (
     input [3:0] op,
-    input [3:0] a,
-    input [3:0] b,
-    input cy_in,
-    input cmp_in,
-    output reg [3:0] d,
-    output cy_out,
-    output reg cmp_res   // On final cycle, 1 for SLT/SLTU/EQ
+    input [31:0] a,
+    input [31:0] b,
+    output reg [31:0] d,
+    output reg cmp_res   // 1 for SLT/SLTU/EQ
 );
 
-    wire [4:0] a_for_add = {1'b0, a};
-    wire [4:0] b_for_add = {1'b0, (op[1] || op[3]) ? ~b : b};
-    wire [4:0] sum = a_for_add + b_for_add + {4'b0, cy_in};
-    wire [3:0] a_xor_b = a ^ b;
+    wire cy_in = op[1] || op[3];
+    wire [32:0] a_for_add = {1'b0, a};
+    wire [32:0] b_for_add = {1'b0, (op[1] || op[3]) ? ~b : b};
+    wire [32:0] sum = a_for_add + b_for_add + {32'b0, cy_in};
 
     always @(*) begin
         case (op[2:0])
-            3'b000: d = sum[3:0];
+            3'b000: d = sum[31:0];
             3'b111: d = a & b;
             3'b110: d = a | b;
-            3'b100: d = a_xor_b;
-            default: d = 4'b0;
+            3'b100: d = a ^ b;
+            default: d = 32'b0;
         endcase
     end
 
     always @(*) begin
-        if (op[0])      cmp_res = ~sum[4];
-        else if (op[1]) cmp_res = a[3] ^ b_for_add[3] ^ sum[4];
-        else            cmp_res = cmp_in && a_xor_b == 0;
+        if (op[0])      cmp_res = ~sum[32];
+        else if (op[1]) cmp_res = a[31] ^ b_for_add[31] ^ sum[32];
+        else            cmp_res = (a == b);
     end
-
-    assign cy_out = sum[4];
 
 endmodule
 
 module tinyqv_shifter (
     input [3:2] op,
-    input [2:0] counter,
     input [31:0] a,
     input [4:0] b,
-    output [3:0] d
+    output [31:0] d
 );
 
     wire top_bit = op[3] ? a[31] : 1'b0;
@@ -72,38 +64,14 @@ module tinyqv_shifter (
         a[24], a[25], a[26], a[27], a[28], a[29], a[30], a[31]
       };
 
-    wire [2:0] c = shift_right ? counter : ~counter;
-    wire [5:0] shift_amt = {1'b0, b} + {1'b0, c, 2'b0};
-    wire [5:0] adjusted_shift_amt = {1'b0, shift_amt[4:0]};
+    wire [32:0] a_for_shift = {top_bit, a_for_shift_right};
+    wire [32:0] dr = $signed(a_for_shift) >>> b; 
 
-    wire [34:0] a_for_shift = {{3{top_bit}}, a_for_shift_right};
-
-    reg [3:0] dr;
-    always @(*) begin
-        if (shift_amt[5]) dr = {4{top_bit}};
-        else dr = a_for_shift[adjusted_shift_amt+:4];
-    end
-
-    assign d = shift_right ? dr : { dr[ 0], dr[ 1], dr[ 2], dr[ 3]};
-
-endmodule
-
-module tinyqv_mul #(parameter B_BITS=16) (
-    input clk,
-
-    input [3:0] a,
-    input [B_BITS-1:0] b,
-
-    output [3:0] d
-);
-
-    reg [B_BITS-1:0] accum;
-    wire [B_BITS+3:0] next_accum = {4'b0, accum} + {{B_BITS{1'b0}}, a} * {4'd0, b};
-
-    always @(posedge clk) begin
-        accum <= (a != 4'b0000) ? next_accum[B_BITS+3:4] : {4'b0000, accum[B_BITS-1:4]};
-    end
-
-    assign d = next_accum[3:0];
+    assign d = shift_right ? dr[31:0] : 
+      { dr[ 0], dr[ 1], dr[ 2], dr[ 3], dr[ 4], dr[ 5], dr[ 6], dr[ 7], 
+        dr[ 8], dr[ 9], dr[10], dr[11], dr[12], dr[13], dr[14], dr[15], 
+        dr[16], dr[17], dr[18], dr[19], dr[20], dr[21], dr[22], dr[23], 
+        dr[24], dr[25], dr[26], dr[27], dr[28], dr[29], dr[30], dr[31]
+      };
 
 endmodule

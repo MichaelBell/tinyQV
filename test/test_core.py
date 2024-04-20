@@ -30,14 +30,14 @@ async def test_load_store(dut):
         dut.instr.value = InstructionLW(reg, x3, offset).encode()
         dut.data_in.value.assign("X")
 
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000400
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         dut.load_data_ready.value = 1
         dut.data_in.value = val
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 1
         dut.load_data_ready.value = 0
         dut.data_in.value.assign("X")
@@ -45,7 +45,7 @@ async def test_load_store(dut):
         op = random.choice(ops)
         dut.instr.value = op[0](x3, reg, offset).encode()
 
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 1
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000400
@@ -55,14 +55,14 @@ async def send_instr(dut, instr, cycles=0):
     dut.instr.value = instr
     if cycles == 0:
         while True:
-            await ClockCycles(dut.clk, 8)
+            await ClockCycles(dut.clk, 1)
             if dut.instr_complete.value: return
     else:
         while cycles > 1:
-            await ClockCycles(dut.clk, 8)
+            await ClockCycles(dut.clk, 1)
             assert dut.instr_complete.value == 0
             cycles -= 1
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 1
 
 def fix_hardcoded_reg_value(reg, val):
@@ -75,7 +75,7 @@ async def get_reg_value(dut, reg):
     dut.instr.value = InstructionSW(0, reg, 0).encode()
     dut.data_in.value = 0
 
-    await ClockCycles(dut.clk, 8)
+    await ClockCycles(dut.clk, 1)
     assert dut.instr_complete.value == 1
     assert dut.address_ready.value == 1
     assert dut.addr_out.value.signed_integer == 0
@@ -86,13 +86,13 @@ async def set_reg_value(dut, reg, val):
     dut.instr.value = InstructionLW(reg, x3, offset).encode()
     dut.data_in.value.assign("X")
 
-    await ClockCycles(dut.clk, 8)
+    await ClockCycles(dut.clk, 1)
     assert dut.instr_complete.value == 0
     assert dut.address_ready.value == 1
     assert dut.addr_out.value.signed_integer == offset + 0x1000400
     dut.load_data_ready.value = 1
     dut.data_in.value = val
-    await ClockCycles(dut.clk, 16)
+    await ClockCycles(dut.clk, 2)
     assert dut.instr_complete.value == 1
     dut.load_data_ready.value = 0
     dut.data_in.value.assign("X")
@@ -121,16 +121,16 @@ async def test_load(dut):
         val = random.randint(-0x80000000, 0x7FFFFFFF)
         dut.instr.value = op[0](reg, x3, offset).encode()
         dut.data_in.value.assign("X")
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 0
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000400
         for cycle in range(random.randint(1, 20)):
-            await ClockCycles(dut.clk, 8)
+            await ClockCycles(dut.clk, 1)
             assert dut.instr_complete.value == 0
         dut.load_data_ready.value = 1
         dut.data_in.value = val
-        await ClockCycles(dut.clk, 8)
+        await ClockCycles(dut.clk, 1)
         assert dut.instr_complete.value == 1
         dut.load_data_ready.value = 0
 
@@ -346,51 +346,6 @@ async def test_branch(dut):
         assert dut.branch.value == op[1](a, b)
 
 @cocotb.test()
-async def test_trap(dut):
-    clock = Clock(dut.clk, 4, units="ns")
-    cocotb.start_soon(clock.start())
-    dut.rstn.value = 0
-    await ClockCycles(dut.clk, 2)
-    dut.rstn.value = 1
-    dut.pc.value = 0x8
-
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0xC
-    await send_instr(dut, InstructionECALL().encode())
-    assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x4
-    dut.pc.value = 0x4
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mcause).encode())
-    assert await get_reg_value(dut, x1) == 11
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mepc).encode())
-    assert await get_reg_value(dut, x1) == 0x8
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x80
-    await send_instr(dut, InstructionMRET().encode())
-    assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x8
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x8C
-
-    dut.pc.value = 0x723456
-    await send_instr(dut, 0x00100073)   # InstructionEBREAK().encode()
-    assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x4
-    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
-    assert await get_reg_value(dut, x2) == 3
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x80
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mepc).encode())
-    assert await get_reg_value(dut, x1) == 0x723456
-    await send_instr(dut, InstructionADDI(x1, x1, 0x114).encode())
-    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mepc).encode())
-    await send_instr(dut, InstructionMRET().encode())
-    assert dut.branch.value == 1
-    assert dut.addr_out.value == 0x723456 + 0x114
-    await send_instr(dut, InstructionCSRRS(x1, x0, csrnames.mstatus).encode())
-    assert await get_reg_value(dut, x1) == 0x8C
-
-@cocotb.test()
 async def test_shift(dut):
     clock = Clock(dut.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
@@ -444,33 +399,6 @@ async def test_shift(dut):
     assert await get_reg_value(dut, x2) == 0xFFFFC000
 
 
-class InstructionMUL16:
-    def __init__(self, rd, rs1, rs2):
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
-
-    def encode(self):
-        return InstructionMUL(self.rd, self.rs1, self.rs2).encode() ^ 0x6000000
-
-
-@cocotb.test()
-async def test_multiply(dut):
-    clock = Clock(dut.clk, 4, units="ns")
-    cocotb.start_soon(clock.start())
-    dut.rstn.value = 0
-    await ClockCycles(dut.clk, 2)
-    dut.rstn.value = 1
-
-    await send_instr(dut, InstructionADDI(x1, x0, 2).encode())
-    await send_instr(dut, InstructionADDI(x2, x0, 3).encode())
-    await send_instr(dut, InstructionMUL16(x5, x1, x2).encode())
-    assert await get_reg_value(dut, x5) == 6
-    await send_instr(dut, InstructionMUL16(x2, x5, x1).encode())
-    assert await get_reg_value(dut, x2) == 12
-    await send_instr(dut, InstructionMUL16(x2, x5, x2).encode())
-    assert await get_reg_value(dut, x2) == 12*6
-
 reg = [0] * 16
 
 # Each Op does reg[d] = fn(a, b)
@@ -492,15 +420,15 @@ class Op:
         return self.rvm_insn(rd, rs1, arg2).encode()
 
 ops = [
-    Op(InstructionADDI, lambda rs1, imm: reg[rs1] + imm, 1, "+i"),
-    Op(InstructionADD, lambda rs1, rs2: reg[rs1] + reg[rs2], 1, "+"),
-    Op(InstructionSUB, lambda rs1, rs2: reg[rs1] - reg[rs2], 1, "-"),
-    Op(InstructionANDI, lambda rs1, imm: reg[rs1] & imm, 1, "&i"),
-    Op(InstructionAND, lambda rs1, rs2: reg[rs1] & reg[rs2], 1, "&"),
-    Op(InstructionORI, lambda rs1, imm: reg[rs1] | imm, 1, "|i"),
-    Op(InstructionOR, lambda rs1, rs2: reg[rs1] | reg[rs2], 1, "|"),
-    Op(InstructionXORI, lambda rs1, imm: reg[rs1] ^ imm, 1, "^i"),
-    Op(InstructionXOR, lambda rs1, rs2: reg[rs1] ^ reg[rs2], 1, "^"),
+    Op(InstructionADDI, lambda rs1, imm: reg[rs1] + imm, 2, "+i"),
+    Op(InstructionADD, lambda rs1, rs2: reg[rs1] + reg[rs2], 2, "+"),
+    Op(InstructionSUB, lambda rs1, rs2: reg[rs1] - reg[rs2], 2, "-"),
+    Op(InstructionANDI, lambda rs1, imm: reg[rs1] & imm, 2, "&i"),
+    Op(InstructionAND, lambda rs1, rs2: reg[rs1] & reg[rs2], 2, "&"),
+    Op(InstructionORI, lambda rs1, imm: reg[rs1] | imm, 2, "|i"),
+    Op(InstructionOR, lambda rs1, rs2: reg[rs1] | reg[rs2], 2, "|"),
+    Op(InstructionXORI, lambda rs1, imm: reg[rs1] ^ imm, 2, "^i"),
+    Op(InstructionXOR, lambda rs1, rs2: reg[rs1] ^ reg[rs2], 2, "^"),
     Op(InstructionSLTI, lambda rs1, imm: 1 if reg[rs1] < imm else 0, 2, "<i"),
     Op(InstructionSLT, lambda rs1, rs2: 1 if reg[rs1] < reg[rs2] else 0, 2, "<"),
     Op(InstructionSLTIU, lambda rs1, imm: 1 if (reg[rs1] & 0xFFFFFFFF) < (imm & 0xFFFFFFFF) else 0, 2, "<iu"),
@@ -511,7 +439,6 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
-    Op(InstructionMUL16, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
 ]
 
 @cocotb.test()
