@@ -21,154 +21,88 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     output reg [31:0] data_out,
 
-    output reg    data_continue,
-
     input         data_ready,  // Transaction complete/data request can be modified.
     input  [31:0] data_in
 );
 
     // Decoder interface
-    // _de suffix used for decoded instruction that will be registered
-    wire [31:0] instr;
+    reg [31:0] instr;
 
-    wire [31:0] imm_de;
+    wire [31:0] imm;
 
-    wire is_load_de;
-    wire is_alu_imm_de;
-    wire is_auipc_de;
-    wire is_store_de;
-    wire is_alu_reg_de;
-    wire is_lui_de;
-    wire is_branch_de;
-    wire is_jalr_de;
-    wire is_jal_de;
-    wire is_system_de;
+    wire is_load;
+    wire is_alu_imm;
+    wire is_auipc;
+    wire is_store;
+    wire is_alu_reg;
+    wire is_lui;
+    wire is_branch;
+    wire is_jalr;
+    wire is_jal;
+    wire is_system;
 
-    wire [2:1] instr_len_de;
-    wire [3:0] alu_op_de;
-    wire [2:0] mem_op_de;
+    wire [2:1] instr_len;
+    wire [3:0] alu_op;
+    wire [2:0] mem_op;
 
-    wire [3:0] rs1_de;
-    wire [3:0] rs2_de;
-    wire [3:0] rd_de;
-    wire [2:0] additional_mem_ops_de;
-    wire mem_op_increment_reg_de;
+    wire [3:0] rs1;
+    wire [3:0] rs2;
+    wire [3:0] rd;
 
     tinyqv_decoder i_decoder(
         instr, 
-        imm_de,
+        imm,
 
-        is_load_de,
-        is_alu_imm_de,
-        is_auipc_de,
-        is_store_de,
-        is_alu_reg_de,
-        is_lui_de,
-        is_branch_de,
-        is_jalr_de,
-        is_jal_de,
-        is_system_de,
+        is_load,
+        is_alu_imm,
+        is_auipc,
+        is_store,
+        is_alu_reg,
+        is_lui,
+        is_branch,
+        is_jalr,
+        is_jal,
+        is_system,
 
-        instr_len_de,
-        alu_op_de,  // See tinyqv_alu for format
-        mem_op_de,
+        instr_len,
+        alu_op,  // See tinyqv_alu for format
+        mem_op,
 
-        rs1_de,
-        rs2_de,
-        rd_de,
-        additional_mem_ops_de,
-        mem_op_increment_reg_de);
-
-    reg [31:0] imm;
-
-    reg is_load;
-    reg is_alu_imm;
-    reg is_auipc;
-    reg is_store;
-    reg is_alu_reg;
-    reg is_lui;
-    reg is_branch;
-    reg is_jalr;
-    reg is_jal;
-    reg is_system;
-
-    reg [2:1] instr_len;
-    reg [3:0] alu_op;
-    reg [2:0] mem_op;
-
-    reg [3:0] rs1;
-    reg [3:0] rs2;
-    reg [3:0] rd;
-    reg [2:0] additional_mem_ops;
-    reg mem_op_increment_reg;
+        rs1,
+        rs2,
+        rd);
 
     reg instr_valid;
 
-    wire [23:0] pc;
+    reg  [23:1] pc_reg;
+    wire [23:0] pc = {pc_reg, 1'b0};
 
     wire [31:0] data_out_core;
     wire [27:0] addr_out;
     wire address_ready;
     wire instr_complete_core;
     wire branch;
-    wire any_additional_mem_ops = additional_mem_ops != 3'b000;
 
     reg no_write_in_progress;
     reg load_started;
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
-    wire instr_complete = instr_complete_core && !stall_core && !any_additional_mem_ops;
+    wire instr_complete = instr_complete_core && !stall_core;
 
-    reg [2:1] pc_offset;
-    reg [3:1] instr_write_offset;
-
-    wire [3:1] next_pc_offset = {1'b0, pc_offset} + {1'b0, instr_len};
-    wire [3:1] instr_avail_len = instr_write_offset - (instr_valid ? next_pc_offset : {1'b0, pc_offset});
+    // 0, 2 or 4 bytes available
+    reg [2:1] instr_avail_len;
 
     always @(posedge clk) begin
         if (!rstn) begin
             instr_valid <= 0;
-            is_load <= 0;
-            is_alu_imm <= 0;
-            is_auipc <= 0;
-            is_store <= 0;
-            is_alu_reg <= 0;
-            is_lui <= 0;
-            is_branch <= 0;
-            is_jalr <= 0;
-            is_jal <= 0;
-            is_system <= 0;
-            instr_len <= 2'b10;
-            additional_mem_ops <= 3'b000;
-        end else if (any_additional_mem_ops && instr_complete_core && !stall_core) begin
-            rs2 <= rs2 + {3'b000, mem_op_increment_reg};
-            rd <= rd + 4'b0001;
-            additional_mem_ops <= additional_mem_ops - 3'b001;
-        end else if (!instr_valid || instr_complete || branch) begin
-            if ({1'b0,instr_len_de} <= instr_avail_len) begin
-                imm <= imm_de;
-                is_load <= is_load_de;
-                is_alu_imm <= is_alu_imm_de;
-                is_auipc <= is_auipc_de;
-                is_store <= is_store_de;
-                is_alu_reg <= is_alu_reg_de;
-                is_lui <= is_lui_de;
-                is_branch <= is_branch_de;
-                is_jalr <= is_jalr_de;
-                is_jal <= is_jal_de;
-                is_system <= is_system_de;
-                instr_len <= instr_len_de;
-                alu_op <= alu_op_de;
-                mem_op <= mem_op_de;
-                rs1 <= rs1_de;
-                rs2 <= rs2_de;
-                rd <= rd_de;
-                additional_mem_ops <= additional_mem_ops_de;
-                mem_op_increment_reg <= mem_op_increment_reg_de;
+        end else if (branch) begin
+            instr_valid <= 0;
+        end else if (!instr_valid) begin
+            if (instr_len <= instr_avail_len) begin
                 instr_valid <= !branch;
             end else begin
                 instr_valid <= 0;
             end
-        end
+        end else if (instr_complete) instr_valid <= 0;
     end
 
     always @(posedge clk) begin
@@ -185,11 +119,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (!rstn) begin
             data_write_n <= 2'b11;
             no_write_in_progress <= 1;
-            data_continue <= 0;
         end else if (is_store && address_ready) begin
             data_write_n <= mem_op[1:0];
             no_write_in_progress <= 0;
-            data_continue <= any_additional_mem_ops;
         end else if (data_ready) begin
             data_write_n <= 2'b11;
             no_write_in_progress <= 1;
@@ -201,7 +133,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             if (address_ready) begin
                 data_read_n <= mem_op[1:0]; 
                 load_started <= 1;
-                data_continue <= any_additional_mem_ops;
             end 
             if (data_ready && load_started) begin
                 data_read_n <= 2'b11;
@@ -257,48 +188,34 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     /////// Instruction fetch ///////
 
-    reg [15:0] instr_data[0:3];
-
-    reg [23:3] instr_data_start;
     reg instr_fetch_running;
 
-    wire [23:0] next_pc = {instr_data_start, 3'b000} + {20'd0, next_pc_offset, 1'b0};
-    wire pc_wrap = next_pc_offset[3] && instr_complete;
-
-    wire [3:1] next_instr_write_offset = instr_write_offset + (instr_ready && instr_fetch_running ? 3'b001 : 3'b000) - (pc_wrap ? 3'b100 : 3'b000);
-    wire next_instr_stall = (next_instr_write_offset == {1'b1, pc_offset});
+    wire [23:0] next_pc = pc + {21'd0, instr_len, 1'b0};
 
     always @(posedge clk) begin
         if (!rstn) begin
-            instr_data[0][1:0] <= 2'b11;
-            instr_data[1][1:0] <= 2'b11;
-            instr_data[2][1:0] <= 2'b11;
-            instr_data[3][1:0] <= 2'b11;
-            instr_data_start <= 0;
-            pc_offset <= 0;
-            instr_write_offset <= 0;
+            pc_reg <= 0;
+            instr_avail_len <= 0;
             instr_fetch_running <= 0;
 
         end else begin
 
             if (branch) begin
-                instr_data_start <= addr_out[23:3];
-                instr_write_offset <= {1'b0, addr_out[2:1]};
-                pc_offset <= addr_out[2:1];
+                pc_reg <= addr_out[23:1];
+                instr_avail_len <= 0;
                 instr_fetch_running <= 0;
             end
             else begin
                 if (instr_fetch_started) instr_fetch_running <= 1;
                 else if (instr_fetch_stopped) instr_fetch_running <= 0;
 
-                instr_write_offset <= next_instr_write_offset;
-
                 if (instr_complete) begin
-                    pc_offset <= next_pc_offset[2:1];
-                    instr_data_start <= next_pc[23:3];
+                    instr_avail_len <= instr_avail_len - instr_len;
+                    pc_reg <= next_pc[23:1];
                 end
                 if (instr_ready && instr_fetch_running) begin
-                    instr_data[instr_write_offset[2:1]] <= instr_data_in;
+                    instr[instr_avail_len * 16 +:16] <= instr_data_in;
+                    instr_avail_len <= instr_avail_len + 2'b01;
                 end
             end
         end
@@ -306,16 +223,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     // Make sure instr_fetch_restart pulses low on branch
     assign instr_fetch_restart = !instr_fetch_running && !branch;
-    assign instr_fetch_stall = next_instr_stall;
+    assign instr_fetch_stall = instr_avail_len[2];
 
-    assign instr_addr = {instr_data_start, 2'b00} + {20'd0, instr_write_offset};
-
-    /* verilator lint_off WIDTHTRUNC */
-    wire [2:1] pc_offset_hi = pc_offset + 2'b01;
-    wire [2:1] next_pc_offset_hi = next_pc_offset + 2'b01;
-    /* verilator lint_on WIDTHTRUNC */
-
-    assign instr = instr_valid ? {instr_data[next_pc_offset_hi], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset_hi], instr_data[pc_offset]};
-    assign pc = {instr_data_start, pc_offset, 1'b0};
+    assign instr_addr = pc_reg + {21'b0, instr_avail_len};
 
 endmodule

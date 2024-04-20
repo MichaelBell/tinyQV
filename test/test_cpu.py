@@ -106,7 +106,6 @@ async def start(dut):
     dut.rstn.value = 1
     await ClockCycles(dut.clk, 1)
     dut.rstn.value = 0
-    dut.interrupt_req.value = 0
     await ClockCycles(dut.clk, 2)
     dut.instr_fetch_started.value = 0
     dut.instr_fetch_stopped.value = 0

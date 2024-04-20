@@ -44,7 +44,6 @@ module tinyQV (
   wire [31:0] qv_data_to_write;
   wire        qv_data_ready;
   wire [31:0] qv_data_from_read;
-  wire        qv_data_continue;
   wire  [1:0] mem_data_write_n;
   wire  [1:0] mem_data_read_n;
   wire        mem_data_ready;
@@ -84,7 +83,6 @@ module tinyQV (
         .data_write_n(qv_data_write_n),
         .data_read_n(qv_data_read_n),
         .data_out(qv_data_to_write),
-        .data_continue(qv_data_continue),
 
         .data_ready(qv_data_ready),
         .data_in(qv_data_from_read)
@@ -107,7 +105,7 @@ module tinyQV (
         .data_write_n(mem_data_write_n),
         .data_read_n(mem_data_read_n),
         .data_to_write(qv_data_to_write),
-        .data_continue(qv_data_continue),
+        .data_continue(1'b0),
 
         .data_ready(mem_data_ready),
         .data_from_read(mem_data_from_read),

@@ -27,10 +27,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
 
     output reg [REG_ADDR_BITS-1:0] rs1,
     output reg [REG_ADDR_BITS-1:0] rs2,
-    output reg [REG_ADDR_BITS-1:0] rd,
-
-    output reg [2:0] additional_mem_ops,
-    output reg       mem_op_increment_reg
+    output reg [REG_ADDR_BITS-1:0] rd
 );
 
     wire [31:0] Uimm = {    instr[31],   instr[30:12], {12{1'b0}}};
@@ -53,9 +50,6 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     wire [31:0] CADDI4SPimm  = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
 
     always @(*) begin
-        additional_mem_ops = 3'b000;
-        mem_op_increment_reg = 1;
-
         if (instr[1:0] == 2'b11) begin
             is_load    =  (instr[6:2] == 5'b00000); // rd <- mem[rs1+Iimm]
             is_alu_imm =  (instr[6:2] == 5'b00100); // rd <- rs1 OP Iimm
@@ -82,17 +76,6 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             else alu_op = {instr[30] && (instr[5] || instr[13:12] == 2'b01),instr[14:12]};
 
             mem_op = instr[14:12];
-            if ((is_load || is_store) && instr[13:12] == 2'b11) begin
-                // TinyQV custom: 2 or 4 loads/stores to consecutive registers
-                mem_op = 3'b010;
-                additional_mem_ops = {1'b0, instr[14], 1'b1};
-            end
-            if (is_store && instr[14:12] == 3'b110) begin
-                // TinyQV custom: 4 stores from the same reg (fast memset)
-                mem_op = 3'b010;
-                additional_mem_ops = {1'b0, instr[14], 1'b1};
-                mem_op_increment_reg = 0;
-            end
 
             rs1 = instr[15+:REG_ADDR_BITS];
             rs2 = instr[20+:REG_ADDR_BITS];

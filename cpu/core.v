@@ -118,7 +118,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Load / Store /////////
 
-    assign addr_out = alu_out[27:0];
+    assign addr_out = is_branch ? {4'b0, pc + imm[23:0]} : alu_out[27:0];
 
     assign data_out[ 7: 0] = data_rs2[ 7: 0];
     assign data_out[15: 8] = data_rs2[15: 8] & {{8{mem_op[1] | mem_op[0]}}};
@@ -142,7 +142,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             instr_complete = 1;
         else if (cycle[0] && (is_auipc || is_lui || is_jal || is_jalr || is_alu_imm || is_alu_reg))
             instr_complete = 1;
-        else if (load_done && is_load)
+        else if (load_done && is_load && cycle != 2'b00)
             instr_complete = 1;
     end
 
