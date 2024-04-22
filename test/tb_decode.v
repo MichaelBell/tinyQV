@@ -20,7 +20,6 @@ module tb_decode (
     output is_branch,
     output is_jalr,
     output is_jal,
-    output is_ret,
     output is_system,
 
     output [2:0] instr_len,
@@ -30,10 +29,7 @@ module tb_decode (
 
     output [3:0] rs1,
     output [3:0] rs2,
-    output [3:0] rd,
-
-    output [2:0] additional_mem_ops,
-    output       mem_op_increment_reg
+    output [3:0] rd
 );
 
 `ifdef COCOTB_SIM
@@ -56,22 +52,16 @@ end
         is_branch,
         is_jalr,
         is_jal,
-        is_ret,
         is_system,
 
-        instr_len[2:1],
+        instr_len,
 
         alu_op,  // See tinyqv_alu for format
         mem_op,
 
         rs1,
         rs2,
-        rd,
-
-        additional_mem_ops,
-        mem_op_increment_reg
+        rd
              );
-
-    assign instr_len[0] = 1'b0;
 
 endmodule
