@@ -164,7 +164,6 @@ async def reset(dut, latency=1):
     dut.instr_fetch_stall.value = 0
     dut.data_write_n.value = 3
     dut.data_read_n.value = 3
-    dut.data_continue.value = 0
     await ClockCycles(dut.clk, 1, False)
 
 nibble_shift_order = [4, 0, 12, 8, 20, 16, 28, 24]
@@ -181,6 +180,7 @@ async def test_data_read(dut):
 
         # Read
         data = random.randint(0, (1 << (8 * read_len)) - 1)
+        bits_out = 0
         for i in range(2 * read_len):
             dut.spi_data_in.value = (data >> (nibble_shift_order[i])) & 0xF
             await ClockCycles(dut.clk, 1, False)
@@ -191,13 +191,14 @@ async def test_data_read(dut):
             await ClockCycles(dut.clk, 1, False)
             assert select.value == 0
             assert dut.spi_clk_out.value == 0
-            assert dut.data_ready.value == (1 if i == 2 * read_len - 1 else 0)
+            if (i & 1) == 0:
+                assert dut.data_ready.value == 0
+            else:
+                j = i >> 1    
+                assert dut.data_ready.value == 1 << j
+                bits_out |= dut.data_from_read.value
 
-        # Need to only read the valid bits
-        bits_out = dut.data_from_read.value.binstr
-        bits_out = bits_out[32 - 8 * read_len:]
-        format_str = "{:" + "0{}b".format(8 * read_len) + "}"
-        assert bits_out == format_str.format(data)
+        assert bits_out == data
 
 @cocotb.test()
 async def test_data_write(dut):
@@ -224,7 +225,7 @@ async def test_data_write(dut):
             if i == 2 * read_len - 1:
                 assert select.value == 1
                 assert dut.spi_clk_out.value == 0
-                assert dut.data_ready.value == 1
+                assert dut.data_ready.value == 0xF
             else:
                 assert select.value == 0
                 assert dut.spi_clk_out.value == 0
@@ -235,93 +236,3 @@ async def test_data_write(dut):
             delay = False
         else:
             delay = True
-
-@cocotb.test()
-async def test_data_read_continue(dut):
-    await reset(dut)
-
-    for k in range(20):
-        len_code = 2
-        read_len = 4
-        num_reads = random.randint(2, 16)
-        
-        await start_data_read(dut, len_code, k != 0)
-        dut.data_continue.value = 1
-
-        for j in range(num_reads):
-            
-            data = random.randint(0, (1 << (8 * read_len)) - 1)
-            for i in range(2 * read_len):
-                dut.spi_data_in.value = (data >> (nibble_shift_order[i])) & 0xF
-                await ClockCycles(dut.clk, 1, False)
-                assert select.value == 0
-                assert dut.spi_clk_out.value == 1
-                assert dut.spi_data_oe.value == 0
-                assert dut.data_ready.value == 0
-                await ClockCycles(dut.clk, 1, False)
-                assert select.value == 0
-                assert dut.spi_clk_out.value == 0
-                if j != 0 and i == 1:
-                    assert dut.data_ready.value == 0
-                    await ClockCycles(dut.clk, random.randint(1,8), False)
-                    assert select.value == 0
-                    assert dut.spi_clk_out.value == 0
-                    dut.data_read_n.value = len_code
-                    dut.data_continue.value = (1 if j != num_reads - 1 else 0)
-                    await ClockCycles(dut.clk, 2, False)
-                    assert select.value == 0
-                    assert dut.spi_clk_out.value == 0
-                else:
-                    assert dut.data_ready.value == (1 if i == 2 * read_len - 1 else 0)
-
-            assert dut.data_from_read.value == data
-            dut.data_read_n.value = 3
-
-@cocotb.test()
-async def test_data_write_continue(dut):
-    await reset(dut)
-
-    for k in range(20):
-        len_code = 2
-        read_len = 4
-        num_writes = random.randint(2, 16)
-        
-        data = random.randint(0, (1 << (8 * read_len)) - 1)
-        await start_data_write(dut, data, len_code, False)
-        dut.data_continue.value = 1
-
-        for j in range(num_writes):
-            for i in range(2 * read_len):
-                assert dut.spi_data_oe.value == 0xF
-                assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
-                await ClockCycles(dut.clk, 1, False)
-                assert select.value == 0
-                assert dut.spi_clk_out.value == 1
-                assert dut.spi_data_oe.value == 0xF
-                assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
-                assert dut.data_ready.value == 0
-                await ClockCycles(dut.clk, 1, False)
-                if i != 2 * read_len - 1:
-                    assert select.value == 0
-                    assert dut.spi_clk_out.value == 0
-                    assert dut.data_ready.value == 0
-
-            assert dut.spi_clk_out.value == 0
-            assert dut.data_ready.value == 1
-            dut.data_write_n.value = 3
-            if j != num_writes - 1:
-                assert select.value == 0
-                data = random.randint(0, (1 << (8 * read_len)) - 1)
-                await ClockCycles(dut.clk, random.randint(1,8), False)
-                assert select.value == 0
-                assert dut.spi_clk_out.value == 0
-                dut.data_write_n.value = len_code
-                dut.data_to_write.value = data
-                dut.data_continue.value = (1 if j != num_writes - 2 else 0)
-                await ClockCycles(dut.clk, 2, False)
-                assert select.value == 0
-                assert dut.spi_clk_out.value == 0
-            else:
-                assert select.value == 1
-        
-        await ClockCycles(dut.clk, random.randint(1,8), False)

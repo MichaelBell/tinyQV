@@ -49,11 +49,11 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [3:0] alu_op;
     wire [2:0] mem_op;
 
-    wire [3:0] rs1;
-    wire [3:0] rs2;
-    wire [3:0] rd;
+    wire [REG_ADDR_BITS-1:0] rs1;
+    wire [REG_ADDR_BITS-1:0] rs2;
+    wire [REG_ADDR_BITS-1:0] rd;
 
-    tinyqv_decoder i_decoder(
+    tinyqv_decoder #(.REG_ADDR_BITS(REG_ADDR_BITS)) i_decoder(
         instr, 
         imm,
 
