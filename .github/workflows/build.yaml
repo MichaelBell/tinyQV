@@ -40,3 +40,10 @@ jobs:
     - name: stats
       run: |
         cd pico_ice && make stats >> $GITHUB_STEP_SUMMARY
+
+    - name: upload build
+      uses: actions/upload-artifact@v4
+      with:
+        name: pico-ice
+        path: |
+            pico_ice/tinyqv.bin
