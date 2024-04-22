@@ -41,7 +41,7 @@ end
     wire is_jal;
     wire is_system;
 
-    wire [2:1] instr_len;
+    wire [2:0] instr_len;
     wire [3:0] alu_op;  // See tinyqv_alu for format
     wire [2:0] mem_op;
 

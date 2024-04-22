@@ -36,7 +36,7 @@ module tinyQV (
   wire        instr_fetch_stall;
   wire        instr_fetch_started;
   wire        instr_fetch_stopped;
-  wire [15:0] instr_data;
+  wire  [7:0] instr_data;
   wire        instr_ready;
   wire [27:0] qv_data_addr;
   wire  [1:0] qv_data_write_n;

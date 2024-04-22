@@ -13,7 +13,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     input         instr_fetch_started,
     input         instr_fetch_stopped,
-    input  [15:0] instr_data_in,
+    input   [7:0] instr_data_in,
     input         instr_ready,
 
     output reg [27:0] data_addr,
@@ -41,7 +41,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire is_jal;
     wire is_system;
 
-    wire [2:1] instr_len;
+    wire [2:0] instr_len;
     wire [3:0] alu_op;
     wire [2:0] mem_op;
 
@@ -88,8 +88,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
     wire instr_complete = instr_complete_core && !stall_core;
 
-    // 0, 2 or 4 bytes available
-    reg [2:1] instr_avail_len;
+    reg [2:0] instr_avail_len;
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -190,7 +189,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg instr_fetch_running;
 
-    wire [23:0] next_pc = pc + {21'd0, instr_len, 1'b0};
+    wire [23:0] next_pc = pc + {21'd0, instr_len};
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -214,8 +213,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                     pc_reg <= next_pc[23:1];
                 end
                 if (instr_ready && instr_fetch_running) begin
-                    instr[instr_avail_len * 16 +:16] <= instr_data_in;
-                    instr_avail_len <= instr_avail_len + 2'b01;
+                    instr[instr_avail_len * 8 +:8] <= instr_data_in;
+                    instr_avail_len <= instr_avail_len + 3'b001;
                 end
             end
         end
@@ -225,6 +224,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign instr_fetch_restart = !instr_fetch_running && !branch;
     assign instr_fetch_stall = instr_avail_len[2];
 
-    assign instr_addr = pc_reg + {21'b0, instr_avail_len};
+    assign instr_addr = pc_reg + {21'b0, instr_avail_len[2:1]};
 
 endmodule

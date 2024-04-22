@@ -13,7 +13,7 @@ module tinyqv_mem_ctrl (
 
     output reg     instr_fetch_started,
     output reg     instr_fetch_stopped,
-    output  [15:0] instr_data,
+    output   [7:0] instr_data,
     output         instr_ready,
 
     input [24:0] data_addr,
@@ -57,8 +57,7 @@ module tinyqv_mem_ctrl (
     wire qspi_data_ready;
     wire [7:0] qspi_data_out;
 
-    // Only stall on the last byte of an instruction
-    wire stall_txn = instr_active && instr_fetch_stall && !instr_ready && qspi_data_byte_idx == 2'b01;
+    wire stall_txn = instr_active && instr_fetch_stall && !instr_ready;
     reg data_stall;
 
     always @(*) begin
@@ -162,8 +161,8 @@ module tinyqv_mem_ctrl (
         end
     end
 
-    assign instr_data = {qspi_data_out, qspi_data_buf[7:0]};
-    assign instr_ready = instr_active && qspi_data_ready && qspi_data_byte_idx == 2'b01;
+    assign instr_data = qspi_data_out;
+    assign instr_ready = instr_active && qspi_data_ready;
 
     always @(posedge clk) begin
         qspi_write_done <= qspi_data_req && qspi_data_byte_idx == data_txn_len;

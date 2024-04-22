@@ -13,7 +13,7 @@ module tb_mem_ctrl (
 
     output         instr_fetch_started,
     output         instr_fetch_stopped,
-    output  [15:0] instr_data,
+    output   [7:0] instr_data,
     output         instr_ready,
 
     input [24:0] data_addr,

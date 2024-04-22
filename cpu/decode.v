@@ -19,7 +19,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     output reg is_jal,
     output reg is_system,
 
-    output [2:1] instr_len,
+    output [2:0] instr_len,
 
     output reg [3:0] alu_op,  // See tinyqv_alu for format
 
@@ -277,6 +277,6 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
         end
     end
 
-    assign instr_len = (instr[1:0] == 2'b11) ? 2'b10 : 2'b01;
+    assign instr_len = (instr[1:0] == 2'b11) ? 3'b100 : 3'b010;
 
 endmodule

@@ -62,9 +62,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     wire is_slt = alu_op[3:1] == 3'b001;
 
-    wire [3:0] alu_op_in = alu_op;
-    wire [31:0] alu_a_in = (is_auipc || is_jal) ? {8'h0, pc} : data_rs1;
-    wire [31:0] alu_b_in = (is_alu_reg || is_branch) ? data_rs2 : imm;
+    wire [3:0] alu_op_in = (is_branch && cycle[0]) ? 4'b0000 : alu_op;
+    wire [31:0] alu_a_in = (is_auipc || is_jal || (is_branch && cycle[0])) ? {8'h0, pc} : data_rs1;
+    wire [31:0] alu_b_in = (is_alu_reg || (is_branch && !cycle[0])) ? data_rs2 : imm;
     wire [31:0] alu_out;
     wire cmp_out;
 
@@ -113,12 +113,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     ///////// Branching /////////
 
     wire take_branch = cmp_out ^ mem_op[0];
-    assign branch = ((is_jal || is_jalr) && cycle == 1) || (is_branch && take_branch);
+    assign branch = ((is_jal || is_jalr || is_branch) && cycle[0]);
 
 
     ///////// Load / Store /////////
 
-    assign addr_out = is_branch ? {4'b0, pc + imm[23:0]} : alu_out[27:0];
+    assign addr_out = alu_out[27:0];
 
     assign data_out[ 7: 0] = data_rs2[ 7: 0];
     assign data_out[15: 8] = data_rs2[15: 8] & {{8{mem_op[1] | mem_op[0]}}};
@@ -138,16 +138,17 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg load_done;
     always @(*) begin
         instr_complete = 0;
-        if (is_store || is_branch || is_stall || is_system)
+        if (is_store || (is_branch && !take_branch) || is_stall || is_system)
             instr_complete = 1;
-        else if (cycle[0] && (is_auipc || is_lui || is_jal || is_jalr || is_alu_imm || is_alu_reg))
-            instr_complete = 1;
-        else if (load_done && is_load && cycle != 2'b00)
+        else if (is_load) begin
+            if (load_done && cycle[1])
+                instr_complete = 1;
+        end else if (cycle[0])
             instr_complete = 1;
     end
 
     always @(posedge clk) begin
-        load_done <= load_data_ready && cycle != 2'b00;
+        load_done <= load_data_ready;
     end
 
     assign address_ready = is_load || is_store;

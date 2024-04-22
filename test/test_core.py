@@ -310,24 +310,38 @@ async def test_branch(dut):
 
     await send_instr(dut, InstructionADDI(x1, x0, 0x200).encode())
     await send_instr(dut, InstructionADDI(x2, x0, -0x200).encode())
-    await send_instr(dut, InstructionBEQ(x0, x1, 0x20).encode(), 1, stall=False)
+    await send_instr(dut, InstructionBEQ(x0, x1, 0x20).encode(), stall=False)
     assert dut.branch.value == 0
-    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode(), 1, stall=False)
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
+    await send_instr(dut, InstructionBNE(x0, x1, 0x20).encode(), stall=False)
     assert dut.branch.value == 1
     dut.pc.value = 0x28
-    await send_instr(dut, InstructionBLT(x2, x1, -0x20).encode(), 1, stall=False)
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
+    await send_instr(dut, InstructionBLT(x2, x1, -0x20).encode(), stall=False)
     assert dut.branch.value == 1
     dut.pc.value = 0x8
-    await send_instr(dut, InstructionBGE(x2, x1, 0x20).encode(), 1, stall=False)
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
+    await send_instr(dut, InstructionBGE(x2, x1, 0x20).encode(), stall=False)
     assert dut.branch.value == 0
-    await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode(), 1, stall=False)
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
+    await send_instr(dut, InstructionBLTU(x2, x1, -0x20).encode(), stall=False)
     assert dut.branch.value == 0
-    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), 1, stall=False)
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
+    await send_instr(dut, InstructionBGEU(x2, x1, 0x20).encode(), stall=False)
     assert dut.branch.value == 1
     dut.pc.value = 0x28
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
     await send_instr(dut, InstructionADDI(x1, x0, 0x31).encode())
-    await send_instr(dut, InstructionBLTU(x0, x1, -0x20).encode(), 1, stall=False)
+    await send_instr(dut, InstructionBLTU(x0, x1, -0x20).encode(), stall=False)
     assert dut.branch.value == 1
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
 
     ops = [
         (InstructionBEQ, lambda a, b: a == b),
@@ -363,6 +377,8 @@ async def test_branch(dut):
         #print(a, b, op)
         await send_instr(dut, op[0](r1, r2, offset).encode(), stall=False)
         assert dut.branch.value == op[1](a, b)
+        dut.is_stall.value = 1
+        await ClockCycles(dut.clk, 1)
 
     for i in range(400):
         dut.is_stall.value = 1
@@ -382,6 +398,8 @@ async def test_branch(dut):
         op = random.choice(ops)
         await send_instr(dut, op[0](r1, r2, offset).encode(), stall=False)
         assert dut.branch.value == op[1](a, b)
+        dut.is_stall.value = 1
+        await ClockCycles(dut.clk, 1)
 
 @cocotb.test()
 async def test_shift(dut):
