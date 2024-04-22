@@ -13,7 +13,7 @@ module tb_cpu (
 
     input         instr_fetch_started,
     input         instr_fetch_stopped,
-    input  [15:0] instr_data_in,
+    input  [7:0] instr_data_in,
     input         instr_ready,
 
     output reg [27:0] data_addr,

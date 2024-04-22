@@ -148,6 +148,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    wire [23:0] next_pc = pc + {21'd0, instr_len};
+
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
         clk,
         rstn,
@@ -188,8 +190,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     /////// Instruction fetch ///////
 
     reg instr_fetch_running;
-
-    wire [23:0] next_pc = pc + {21'd0, instr_len};
 
     always @(posedge clk) begin
         if (!rstn) begin

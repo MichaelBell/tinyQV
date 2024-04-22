@@ -40,13 +40,22 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         wire wr_en_this_reg;
     `ifdef SIM    
         assign wr_en_this_reg = wr_en_for_latch && sel_byte;
+    `elsif ICE40
+        assign wr_en_this_reg = wr_en_for_latch && sel_byte;
     `else
         // Use an explicit and gate to minimize possibility of a glitch
         (* keep *) sky130_fd_sc_hd__and2_1 lm_gate ( .A(wr_en_for_latch), .B(sel_byte), .X(wr_en_this_reg) );
     `endif
+
+    `ifdef ICE40
+        always @(posedge clk)
+            if (wr_en_this_reg)
+                registers[i] <= data_rd;
+    `else
         always @(wr_en_this_reg /* or data_rd */)
             if (wr_en_this_reg)
                 registers[i] <= data_rd;
+    `endif
     end
   end
   endgenerate

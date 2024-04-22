@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-`define default_netname none
+`default_nettype none
 
 module tinyQV_top (
         input clk,
@@ -68,22 +68,6 @@ module tinyQV_top (
     wire        data_ready;
     reg [31:0] data_from_read;
 
-    wire       debug_instr_complete;
-    wire       debug_instr_ready;
-    wire       debug_instr_valid;
-    wire       debug_fetch_restart;
-    wire       debug_data_ready;
-    wire       debug_interrupt_pending;
-    wire       debug_branch;
-    wire       debug_early_branch;
-    wire       debug_ret;
-    wire       debug_reg_wen;
-    wire       debug_counter_0;
-    wire       debug_data_continue;
-    wire       debug_stall_txn;
-    wire       debug_stop_txn;
-    wire [3:0] debug_rd;
-
     tinyQV i_tinyqv(
         .clk(clk),
         .rstn(rst_reg_n),
@@ -96,31 +80,13 @@ module tinyQV_top (
         .data_ready(data_ready),
         .data_in(data_from_read),
 
-        .interrupt_req(interrupt_req),
-
         .spi_data_in(qspi_data_in),
         .spi_data_out(qspi_data_out),
         .spi_data_oe(qspi_data_oe),
         .spi_clk_out(qspi_clk_out),
         .spi_flash_select(qspi_flash_select),
         .spi_ram_a_select(qspi_ram_a_select),
-        .spi_ram_b_select(qspi_ram_b_select),
-
-        .debug_instr_complete(debug_instr_complete),
-        .debug_instr_ready(debug_instr_ready),
-        .debug_instr_valid(debug_instr_valid),
-        .debug_fetch_restart(debug_fetch_restart),
-        .debug_data_ready(debug_data_ready),
-        .debug_interrupt_pending(debug_interrupt_pending),
-        .debug_branch(debug_branch),
-        .debug_early_branch(debug_early_branch),
-        .debug_ret(debug_ret),
-        .debug_reg_wen(debug_reg_wen),
-        .debug_counter_0(debug_counter_0),
-        .debug_data_continue(debug_data_continue),
-        .debug_stall_txn(debug_stall_txn),
-        .debug_stop_txn(debug_stop_txn),
-        .debug_rd(debug_rd)
+        .spi_ram_b_select(qspi_ram_b_select)
     );
 
     // Peripheral IOs on ui_in and uo_out
@@ -140,14 +106,10 @@ module tinyQV_top (
 
     assign uo_out[0] = gpio_out_sel[0] ? gpio_out[0] : uart_txd;
     assign uo_out[1] = gpio_out_sel[1] ? gpio_out[1] : uart_rts;
-    assign uo_out[2] = gpio_out_sel[2] ? gpio_out[2] : 
-                       debug_register_data ? debug_rd_r[0] : spi_dc;
-    assign uo_out[3] = gpio_out_sel[3] ? gpio_out[3] : 
-                       debug_register_data ? debug_rd_r[1] : spi_mosi;
-    assign uo_out[4] = gpio_out_sel[4] ? gpio_out[4] : 
-                       debug_register_data ? debug_rd_r[2] : spi_cs;
-    assign uo_out[5] = gpio_out_sel[5] ? gpio_out[5] : 
-                       debug_register_data ? debug_rd_r[3] : spi_sck;
+    assign uo_out[2] = gpio_out_sel[2] ? gpio_out[2] : spi_dc;
+    assign uo_out[3] = gpio_out_sel[3] ? gpio_out[3] : spi_mosi;
+    assign uo_out[4] = gpio_out_sel[4] ? gpio_out[4] : spi_cs;
+    assign uo_out[5] = gpio_out_sel[5] ? gpio_out[5] : spi_sck;
     assign uo_out[6] = gpio_out_sel[6] ? gpio_out[6] : debug_uart_txd;
     assign uo_out[7] = gpio_out_sel[7] ? gpio_out[7] : debug_signal;
 
@@ -174,13 +136,6 @@ module tinyQV_top (
 
     // All transactions complete immediately
     assign data_ready = 1'b1;
-
-    // Interrupt requests
-    reg [1:0] ui_in_reg;
-    always @(posedge clk) begin
-        ui_in_reg <= ui_in[1:0];
-    end
-    wire [3:0] interrupt_req = {!uart_tx_busy, uart_rx_valid, ui_in_reg[1:0]};
 
     // Read data
     always @(*) begin
@@ -274,42 +229,6 @@ module tinyQV_top (
         .read_latency_in(data_to_write[2])
     );
 
-    // Debug
-    reg debug_register_data;
-    always @(posedge clk) begin
-        if (!rst_reg_n)
-            debug_register_data <= 1'b0;
-        else if (connect_peripheral == PERI_DEBUG)
-            debug_register_data <= data_to_write[0];
-    end
-
-    reg [3:0] debug_rd_r;
-    always @(posedge clk) begin
-        debug_rd_r <= debug_rd;
-    end
-
-/*
-    reg [15:0] debug_signals;
-    always @(*) begin
-        debug_signals  = {debug_instr_complete,
-                          debug_instr_ready,
-                          debug_instr_valid,
-                          debug_fetch_restart,
-                          read_n != 2'b11,
-                          write_n != 2'b11,
-                          debug_data_ready,
-                          debug_interrupt_pending,
-                          debug_branch,
-                          debug_early_branch,
-                          debug_ret,
-                          debug_reg_wen,
-                          debug_counter_0,
-                          debug_data_continue,
-                          debug_stall_txn,
-                          debug_stop_txn};
-    end
-    assign debug_signal = debug_signals[ui_in[6:3]];
-*/
     assign debug_signal = 1'b0;
 
 endmodule

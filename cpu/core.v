@@ -34,7 +34,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [31:0] data_in,
     input load_data_ready,
 
-    output reg [31:0] data_out,  // Data for the active store instruction
+    output [31:0] data_out,  // Data for the active store instruction
     output [27:0] addr_out,
     output address_ready,   // The addr_out holds the address for the active load/store instruction
     output reg instr_complete,  // The current instruction will complete this clock, so the instruction may be updated.

@@ -267,9 +267,13 @@ async def test_jal(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x2008
     dut.pc.value = 0x2008
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)    
     await send_instr(dut, InstructionJAL(x2, -0x1000).encode(), stall=False)
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x1008
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
     assert await get_reg_value(dut, x2) == 0x200C
 
 @cocotb.test()
@@ -286,16 +290,22 @@ async def test_jalr(dut):
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x220
     dut.pc.value = 0x220
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
     await send_instr(dut, InstructionAUIPC(x1, 0).encode())
     await send_instr(dut, InstructionJALR(x2, x1, -0x120).encode(), stall=False)
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x100
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
     assert await get_reg_value(dut, x2) == 0x224
     dut.pc.value = 0x224
     await send_instr(dut, InstructionADDI(x1, x0, 0x100).encode())
     await send_instr(dut, InstructionJALR(x2, x1, 0x20).encode(), stall=False)
     assert dut.branch.value == 1
     assert dut.addr_out.value == 0x120
+    dut.is_stall.value = 1
+    await ClockCycles(dut.clk, 1)
     assert await get_reg_value(dut, x2) == 0x228
 
 @cocotb.test()

@@ -30,4 +30,4 @@ set_io --warn-no-port uo_out[5] 48
 set_io --warn-no-port uo_out[6] 46
 set_io --warn-no-port uo_out[7] 44
 
-set_frequency clk 14
+set_frequency clk 10

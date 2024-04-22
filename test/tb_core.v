@@ -77,7 +77,7 @@ end
 
     assign addr_out[31:28] = 0;
 
-    wire [31:0] next_pc = pc + {29'd0, instr_len, 1'b0};
+    wire [31:0] next_pc = pc + {29'd0, instr_len};
 
     tinyqv_core core(clk,
         rstn,
