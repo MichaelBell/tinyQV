@@ -21,10 +21,8 @@ module tinyqv_mem_ctrl (
     input [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [31:0] data_to_write,
 
-    input        data_continue, // Whether another read/write at the next address will immediately follow this one
-
-    output         data_ready,  // Transaction complete/data request can be modified.
-    output  [31:0] data_from_read,
+    output  [3:0] data_ready,  // Transaction complete/data request can be modified.
+    output [31:0] data_from_read,
 
     // External SPI interface
     input      [3:0] spi_data_in,
@@ -51,14 +49,12 @@ module tinyqv_mem_ctrl (
     wire is_instr = instr_active || start_instr;
     wire [1:0] txn_len = is_instr ? 2'b01 : data_txn_len;
     wire [24:0] addr_in = is_instr ? {1'b0, instr_addr, 1'b0} : data_addr[24:0];
-    reg [31:0] qspi_data_buf;
     reg [1:0] qspi_data_byte_idx;
     wire qspi_data_req;
     wire qspi_data_ready;
     wire [7:0] qspi_data_out;
 
     wire stall_txn = instr_active && instr_fetch_stall && !instr_ready;
-    reg data_stall;
 
     always @(*) begin
         start_instr = 0;
@@ -80,7 +76,7 @@ module tinyqv_mem_ctrl (
                         stop_txn = 1;
                     end
                 end
-            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len && !data_continue) begin
+            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len) begin
                 // Data transaction is complete
                 stop_txn = 1;
             end
@@ -122,7 +118,7 @@ module tinyqv_mem_ctrl (
         data_to_write[{write_qspi_data_byte_idx,3'b000} +:8],
         start_read || start_instr,
         start_write,
-        stall_txn || data_stall,
+        stall_txn,
         stop_txn,
 
         qspi_data_out,
@@ -155,12 +151,6 @@ module tinyqv_mem_ctrl (
         end
     end
 
-    always @(posedge clk) begin
-        if (qspi_data_ready) begin
-            qspi_data_buf[{qspi_data_byte_idx,3'b000} +:8] <= qspi_data_out;
-        end
-    end
-
     assign instr_data = qspi_data_out;
     assign instr_ready = instr_active && qspi_data_ready;
 
@@ -168,20 +158,13 @@ module tinyqv_mem_ctrl (
         qspi_write_done <= qspi_data_req && qspi_data_byte_idx == data_txn_len;
     end
 
-    always @(posedge clk) begin
-        if (data_continue) begin
-            if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||
-                (qspi_data_ready && qspi_data_byte_idx == data_txn_len))
-                data_stall <= 1;
-            else if ((data_read_n != 2'b11 || data_write_n != 2'b11) && qspi_data_byte_idx == 2'b00 && !data_ready)
-                data_stall <= 0;
-        end else
-            data_stall <= 0;
-    end
-
-    assign data_ready = !instr_active && ((qspi_data_ready && qspi_data_byte_idx == data_txn_len) || qspi_write_done);
-    assign data_from_read = data_ready ? ({qspi_data_out, qspi_data_buf[23:16],
-        data_txn_len == 2'b01 ? qspi_data_out : qspi_data_buf[15:8],
-        data_txn_len == 2'b00 ? qspi_data_out : qspi_data_buf[7:0]}) : qspi_data_buf;
+    genvar i;
+    generate
+        for (i = 0; i < 4; i = i+1) begin : gen_data_read
+            wire sel_this_byte = (qspi_data_byte_idx == i);
+            assign data_ready[i] = !instr_active && ((qspi_data_ready && sel_this_byte) || qspi_write_done);
+            assign data_from_read[8*(i+1)-1: 8*i] = sel_this_byte ? qspi_data_out : 8'b0;
+        end
+    endgenerate
 
 endmodule

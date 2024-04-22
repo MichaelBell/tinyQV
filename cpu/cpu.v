@@ -21,7 +21,11 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     output reg [31:0] data_out,
 
-    input         data_ready,  // Transaction complete/data request can be modified.
+    input   [3:0] data_ready,  // Byte strobe for data ready.  If data available a byte at a 
+                               // time the bytes must go from low to high.
+                               // Transaction complete/data request can be modified, once the
+                               // top requested bit is set.
+                               // Writes must complete together - only the bottom bit is checked.
     input  [31:0] data_in
 );
 
@@ -114,6 +118,14 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
+    reg read_complete;
+    always @(*) begin
+        read_complete = 0;
+        if (data_read_n == 2'b00 && data_ready[0]) read_complete = 1;
+        if (data_read_n == 2'b01 && data_ready[1]) read_complete = 1;
+        if (data_read_n == 2'b10 && data_ready[3]) read_complete = 1;
+    end
+
     always @(posedge clk) begin
         if (!rstn) begin
             data_write_n <= 2'b11;
@@ -121,7 +133,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end else if (is_store && address_ready) begin
             data_write_n <= mem_op[1:0];
             no_write_in_progress <= 0;
-        end else if (data_ready) begin
+        end else if (data_ready[0]) begin
             data_write_n <= 2'b11;
             no_write_in_progress <= 1;
         end else begin
@@ -133,7 +145,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 data_read_n <= mem_op[1:0]; 
                 load_started <= 1;
             end 
-            if (data_ready && load_started) begin
+            if (read_complete && load_started) begin
                 data_read_n <= 2'b11;
             end 
         end else begin
@@ -210,6 +222,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
                 if (instr_complete) begin
                     instr_avail_len <= instr_avail_len - instr_len;
+                    instr <= {16'b0, instr[31:16]};
                     pc_reg <= next_pc[23:1];
                 end
                 if (instr_ready && instr_fetch_running) begin

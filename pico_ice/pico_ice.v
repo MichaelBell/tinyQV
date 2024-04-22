@@ -19,7 +19,7 @@ module tinyQV_top (
         output [7:0] uo_out
 
 );
-    localparam CLOCK_FREQ = 14_000_000;
+    localparam CLOCK_FREQ = 12_000_000;
 
     // Register the reset on the negative edge of clock for safety.
     // This also allows the option of async reset in the design, which might be preferable in some cases

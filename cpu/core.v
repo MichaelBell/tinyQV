@@ -32,7 +32,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [23:0] pc,
     input [23:0] next_pc,
     input [31:0] data_in,
-    input load_data_ready,
+    input [3:0] load_data_ready,
 
     output [31:0] data_out,  // Data for the active store instruction
     output [27:0] addr_out,
@@ -53,9 +53,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [31:0] data_rs2;
     reg [31:0] data_rd;
     reg wr_en;
+    wire [REG_ADDR_BITS-1:0] rs2_mux = is_load ? rd : rs2;
 
     tinyqv_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
-        i_registers(clk, rstn, wr_en, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
+        i_registers(clk, rstn, wr_en, rs1, rs2_mux, rd, data_rs1, data_rs2, data_rd);
 
 
     ///////// ALU /////////
@@ -79,6 +80,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     ///////// Writeback /////////
 
+    wire [31:0] data_in_muxed = {
+        load_data_ready[3] ? data_in[31:24] : data_rs2[31:24],
+        load_data_ready[2] ? data_in[23:16] : data_rs2[23:16],
+        load_data_ready[1] ? data_in[15: 8] : data_rs2[15: 8],
+        load_data_ready[0] ? data_in[ 7: 0] : data_rs2[ 7: 0]};
+
     always @(*) begin
         wr_en = 0;
         data_rd = 0;
@@ -91,12 +98,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             else
                 data_rd = alu_out;
 
-        end else if (is_load && load_data_ready) begin
+        end else if (is_load && (|load_data_ready)) begin
             wr_en = 1;
-            data_rd = data_in;
+            data_rd = data_in_muxed;
 
-            if (mem_op[1:0] == 2'b00) data_rd[31:8] = {{24{mem_op[2] ? 1'b0 : data_in[7]}}};
-            else if (mem_op[1:0] == 2'b01) data_rd[31:16] = {{16{mem_op[2] ? 1'b0 : data_in[15]}}};
+            if (mem_op[1:0] == 2'b00) data_rd[31:8] = {{24{mem_op[2] ? 1'b0 : data_in_muxed[7]}}};
+            else if (mem_op[1:0] == 2'b01) data_rd[31:16] = {{16{mem_op[2] ? 1'b0 : data_in_muxed[15]}}};
 
         end else if (is_lui) begin
             wr_en = 1;
@@ -148,9 +155,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     always @(posedge clk) begin
-        load_done <= load_data_ready;
+        load_done <= 
+            mem_op[1:0] == 2'b00 ? load_data_ready[0] :
+            mem_op[1:0] == 2'b01 ? load_data_ready[1] :
+                                   load_data_ready[3];
     end
 
-    assign address_ready = is_load || is_store;
+    assign address_ready = (cycle == 0) && (is_load || is_store);
 
 endmodule

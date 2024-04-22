@@ -1,3 +1,6 @@
+`default_nettype none
+`timescale 1ns / 100ps
+
 /* A RISC-V core designed to use minimal area.
   
    Aim is to support RV32E 
@@ -51,7 +54,7 @@ end
         data_read_n,
         data_out,
 
-        data_ready,  // Transaction complete/data request can be modified.
+        {{4{data_ready}}},  // Transaction complete/data request can be modified.
         data_in        
     );
 

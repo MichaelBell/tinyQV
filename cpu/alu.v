@@ -65,7 +65,9 @@ module tinyqv_shifter (
       };
 
     wire [32:0] a_for_shift = {top_bit, a_for_shift_right};
+/* verilator lint_off UNUSEDSIGNAL */    
     wire [32:0] dr = $signed(a_for_shift) >>> b; 
+/* verilator lint_on UNUSEDSIGNAL */
 
     assign d = shift_right ? dr[31:0] : 
       { dr[ 0], dr[ 1], dr[ 2], dr[ 3], dr[ 4], dr[ 5], dr[ 6], dr[ 7], 

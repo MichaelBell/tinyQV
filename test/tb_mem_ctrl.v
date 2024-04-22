@@ -21,9 +21,7 @@ module tb_mem_ctrl (
     input [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     input [31:0] data_to_write,
 
-    input        data_continue,
-
-    output         data_ready,  // Transaction complete/data request can be modified.
+    output   [3:0] data_ready,  // Transaction complete/data request can be modified.
     output  [31:0] data_from_read,
 
     // External SPI interface
@@ -61,8 +59,6 @@ end
         .data_write_n(data_write_n),
         .data_read_n(data_read_n),
         .data_to_write(data_to_write),
-
-        .data_continue(data_continue),
 
         .data_ready(data_ready),
         .data_from_read(data_from_read),
