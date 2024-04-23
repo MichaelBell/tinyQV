@@ -48,6 +48,7 @@ async def test_load_store(dut):
         dut.instr.value = op[0](x3, reg, offset).encode()
 
         await ClockCycles(dut.clk, 1)
+        await Timer(1, "ns")
         assert dut.instr_complete.value == 1
         assert dut.address_ready.value == 1
         assert dut.addr_out.value.signed_integer == offset + 0x1000400
@@ -107,12 +108,14 @@ async def set_reg_value(dut, reg, val):
     dut.is_stall.value = 0
     dut.instr.value = InstructionLW(reg, x3, offset).encode()
     dut.data_in.value.assign("X")
-
-    await ClockCycles(dut.clk, 1)
     await Timer(1, "ns")
     assert dut.instr_complete.value == 0
     assert dut.address_ready.value == 1
     assert dut.addr_out.value.signed_integer == offset + 0x1000400
+
+    await ClockCycles(dut.clk, 1)
+    await Timer(1, "ns")
+    assert dut.instr_complete.value == 0
     dut.load_data_ready.value = 1
     dut.data_in.value = val
     await ClockCycles(dut.clk, 1)
