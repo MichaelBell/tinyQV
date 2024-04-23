@@ -202,6 +202,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     /////// Instruction fetch ///////
 
     reg instr_fetch_running;
+    wire [2:0] next_instr_avail_len = instr_avail_len - instr_len;
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -221,11 +222,15 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 else if (instr_fetch_stopped) instr_fetch_running <= 0;
 
                 if (instr_complete) begin
-                    instr_avail_len <= instr_avail_len - instr_len;
+                    instr_avail_len <= next_instr_avail_len;
                     instr <= {16'b0, instr[31:16]};
                     pc_reg <= next_pc[23:1];
+                    if (instr_ready && instr_fetch_running) begin
+                        instr[next_instr_avail_len * 8 +:8] <= instr_data_in;
+                        instr_avail_len <= next_instr_avail_len + 3'b001;
+                    end
                 end
-                if (instr_ready && instr_fetch_running) begin
+                else if (instr_ready && instr_fetch_running) begin
                     instr[instr_avail_len * 8 +:8] <= instr_data_in;
                     instr_avail_len <= instr_avail_len + 3'b001;
                 end
