@@ -66,7 +66,7 @@ module tinyQV (
   reg rst_reg_n;
   always @(posedge clk) rst_reg_n <= rstn;
 
-  tinyqv_cpu #(.NUM_REGS(32), .REG_ADDR_BITS(5)) cpu(
+  tinyqv_cpu #(.NUM_REGS(16), .REG_ADDR_BITS(4)) cpu(
         .clk(clk),
         .rstn(rst_reg_n),
 

@@ -56,7 +56,7 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             if (wr_en_this_reg)
                 registers[i] <= data_rd;
     `else
-        always @(wr_en_this_reg /* or data_rd */)
+        always @(wr_en_this_reg or data_rd)
             if (wr_en_this_reg)
                 registers[i] <= data_rd;
     `endif
