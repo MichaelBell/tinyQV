@@ -58,7 +58,7 @@ module qspi_flash_controller #(parameter DATA_WIDTH_BYTES=2, parameter ADDR_BITS
     assign busy = fsm_state != FSM_IDLE;
 
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
-/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTH */
 
     always @(posedge clk) begin
         if (!rstn || stop_read) begin
@@ -133,6 +133,6 @@ module qspi_flash_controller #(parameter DATA_WIDTH_BYTES=2, parameter ADDR_BITS
     assign spi_data_out = fsm_state == FSM_CMD  ? {3'b000, !(nibbles_remaining == 4 || nibbles_remaining == 2)} :
                           fsm_state == FSM_ADDR ? addr[ADDR_BITS-1:ADDR_BITS-4] :
                                                   4'b0001;
-/* verilator lint_on WIDTHTRUNC */
+/* verilator lint_on WIDTH */
 
 endmodule

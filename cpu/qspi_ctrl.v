@@ -112,7 +112,7 @@ module qspi_controller (
     end
 
 /* Assignments to nibbles_remaining are not easy to give the correct width for */
-/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTH */
 
     always @(posedge clk) begin
         if (!rstn || stop_txn_now) begin
@@ -208,7 +208,7 @@ module qspi_controller (
         end
     end
 
-/* verilator lint_on WIDTHTRUNC */
+/* verilator lint_on WIDTH */
 
     always @(posedge clk) begin
         if (fsm_state == FSM_IDLE && (start_read || start_write)) begin

@@ -26,7 +26,9 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
 
     wire [31:4] reg_buf;
     `ifdef SIM
+    /* verilator lint_off ASSIGNDLY */
     buf #1 i_regbuf[31:4] (reg_buf, {register[3:0], register[31:8]});
+    /* verilator lint_on ASSIGNDLY */
     `elsif ICE40
     assign reg_buf = {register[3:0], register[31:8]};
     `else
