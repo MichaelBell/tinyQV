@@ -32,7 +32,9 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
     `elsif ICE40
     assign reg_buf = {register[3:0], register[31:8]};
     `else
-    sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
+    // Hack for now
+    //sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
+    assign reg_buf = {register[3:0], register[31:8]};
     `endif
     always @(posedge clk) register[31:4] <= reg_buf;
 
