@@ -250,7 +250,7 @@ async def test_jump(dut):
     await send_instr(dut, InstructionADDI(x1, x0, 0x100).encode())
     await send_instr(dut, InstructionJAL(x2, -0x1000).encode())
     await send_instr(dut, InstructionADDI(x1, x0, 0x80).encode(), True)
-    await expect_branch(dut, 0x4684)
+    await expect_branch(dut, 0x4684, True)
     assert await read_reg(dut, x2) == 0x5688
     assert await read_reg(dut, x1) == 0x100
 
