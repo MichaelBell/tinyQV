@@ -9,6 +9,8 @@ from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3, x5
 from riscvmodel import csrnames
 
+from core_instr import *
+
 async def send_instr(dut, instr, fast=False, len=4):
     await ClockCycles(dut.clk, 1)
     dut.instr_fetch_started.value = 0
@@ -183,6 +185,9 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
+    Op(InstructionMUL16, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
+    Op(InstructionCZERO_EQZ, lambda rs1, rs2: 0 if reg[rs2] == 0 else reg[rs1], 0, "?0"),
+    Op(InstructionCZERO_NEZ, lambda rs1, rs2: 0 if reg[rs2] != 0 else reg[rs1], 0, "?!0"),
 ]
 
 @cocotb.test()

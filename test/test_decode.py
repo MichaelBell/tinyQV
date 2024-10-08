@@ -5,6 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
+from core_instr import *
 
 @cocotb.test()
 async def test_load(dut):
@@ -483,15 +484,6 @@ async def test_alu_imm(dut):
         assert dut.rd.value == dest_reg
 
 
-class InstructionMUL16:
-    def __init__(self, rd, rs1, rs2):
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
-
-    def encode(self):
-        return InstructionMUL(self.rd, self.rs1, self.rs2).encode() ^ 0x6000000
-
 @cocotb.test()
 async def test_alu_reg(dut):
     clock = Clock(dut.clk, 4, units="ns")
@@ -512,6 +504,8 @@ async def test_alu_reg(dut):
         (InstructionSRL, 0b0101, False),
         (InstructionSRA, 0b1101, False),
         (InstructionMUL16, 0b1010, False),
+        (InstructionCZERO_EQZ, 0b1110, False),
+        (InstructionCZERO_NEZ, 0b1111, False),
     ]
 
     for i in range(800):

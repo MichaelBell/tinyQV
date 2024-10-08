@@ -35,3 +35,12 @@ jobs:
     - name: run verification
       run: |
         cd verify && ./verify.sh
+
+    - name: upload vcd
+      if: success() || failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-vcd
+        path: |
+          test/*.vcd
+          test/*results.xml

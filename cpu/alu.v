@@ -16,6 +16,10 @@
 
     Multiply
       1010 MUL: D = B[15:0] * A
+
+    Conditional zero (not implemented here)
+      1110 CZERO.eqz
+      1111 CZERO.nez
 */
 
 module tinyqv_alu (

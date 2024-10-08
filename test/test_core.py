@@ -5,8 +5,10 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2, x3, x5
+from riscvmodel.regnames import x0, x1, x2, x3, x5, x6
 from riscvmodel import csrnames
+
+from core_instr import *
 
 @cocotb.test()
 async def test_load_store(dut):
@@ -222,6 +224,22 @@ async def test_slt(dut):
     await send_instr(dut, InstructionSLTI(x5, x1, 2).encode())
     assert await get_reg_value(dut, x2) == 0
     assert await get_reg_value(dut, x5) == 1
+
+@cocotb.test()
+async def test_czero(dut):
+    clock = Clock(dut.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+
+    await send_instr(dut, InstructionADDI(x1, x0, 1).encode())
+    await send_instr(dut, InstructionADDI(x2, x1, -1).encode())
+    await send_instr(dut, InstructionADDI(x5, x1, 4).encode())
+    await send_instr(dut, InstructionCZERO_EQZ(x6, x5, x2).encode())
+    await send_instr(dut, InstructionCZERO_NEZ(x5, x5, x2).encode())
+    assert await get_reg_value(dut, x5) == 5
+    assert await get_reg_value(dut, x6) == 0
 
 @cocotb.test()
 async def test_jal(dut):
@@ -444,16 +462,6 @@ async def test_shift(dut):
     assert await get_reg_value(dut, x2) == 0xFFFFC000
 
 
-class InstructionMUL16:
-    def __init__(self, rd, rs1, rs2):
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
-
-    def encode(self):
-        return InstructionMUL(self.rd, self.rs1, self.rs2).encode() ^ 0x6000000
-
-
 @cocotb.test()
 async def test_multiply(dut):
     clock = Clock(dut.clk, 4, units="ns")
@@ -512,6 +520,8 @@ ops = [
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
     Op(InstructionMUL16, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
+    Op(InstructionCZERO_EQZ, lambda rs1, rs2: 0 if reg[rs2] == 0 else reg[rs1], 0, "?0"),
+    Op(InstructionCZERO_NEZ, lambda rs1, rs2: 0 if reg[rs2] != 0 else reg[rs1], 0, "?!0"),
 ]
 
 @cocotb.test()

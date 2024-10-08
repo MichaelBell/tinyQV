@@ -57,7 +57,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [1:0] cycle;
 
     wire is_shift = alu_op[1:0] == 2'b01;
-    wire is_mul = alu_op[3] && alu_op[1];
+    wire is_mul = alu_op[3:1] == 3'b101;
+    wire is_czero = alu_op[3:1] == 3'b111;
 
     wire is_priv = is_system && (alu_op[2:0] == 3'b000);
     wire is_trap = is_priv && (imm_lo[9:8] == 2'b00);
@@ -93,7 +94,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     wire is_slt = alu_op[3:1] == 3'b001;
 
-    reg [1:0] alu_cycles;
+    reg [0:0] alu_cycles;
     always @(*) begin
         if (is_slt || is_shift || is_mul) alu_cycles = 1;
         else alu_cycles = 0;
@@ -101,8 +102,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg cy;
     reg cmp;
-    wire [3:0] alu_op_in = alu_op;
-    wire [3:0] alu_a_in = (is_auipc || is_jal) ? pc : data_rs1;
+    wire [3:0] alu_op_in = is_czero ? 4'b0100 : alu_op;
+    wire [3:0] alu_a_in = is_czero ? 4'b0000 : 
+                          (is_auipc || is_jal) ? pc : data_rs1;
     wire [3:0] alu_b_in = (is_alu_reg || is_branch) ? data_rs2 : imm;
     wire [3:0] alu_out;
     wire cy_in = (counter == 0) ? (alu_op_in[1] || alu_op_in[3]) : cy;
@@ -158,7 +160,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         data_rd = 0;
         if (is_alu_imm || is_alu_reg || is_auipc) begin
             wr_en = 1;
-            if (is_slt && cycle == 1 && counter == 0)
+            if (is_czero) begin
+                if (cycle == 1) data_rd = tmp_data[3:0];
+            end else if (is_slt && cycle == 1 && counter == 0)
                 data_rd = {3'b000, cmp};
             else if (is_shift && cycle == 1)
                 data_rd = shift_out;
@@ -212,8 +216,10 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (last_count) begin
             if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall || is_exception || is_branch)
                 instr_complete = 1;
+            else if (is_czero)
+                instr_complete = cycle[0] || (cmp_out ^ alu_op[0]);
             else if (is_alu_imm || is_alu_reg)
-                instr_complete = cycle == alu_cycles;
+                instr_complete = cycle[0:0] == alu_cycles;
             else if (load_done && is_load)
                 instr_complete = 1;
         end
@@ -236,7 +242,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         tmp_data_shift = 1;
         if (is_exception)
             tmp_data_in = (counter == 0) ? {is_interrupt, is_trap && mstatus_mte, 2'b00} : 4'b0000;
-        else if (is_shift)
+        else if (is_shift || is_czero)
             tmp_data_in = data_rs1;
         else if (is_mul)
             tmp_data_in = data_rs2;

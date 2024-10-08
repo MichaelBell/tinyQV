@@ -54,6 +54,9 @@ end
     wire [3:0] rs2;
     wire [3:0] rd;
 
+    wire [2:0] additional_mem_ops;
+    wire mem_op_increment_reg;
+
     tinyqv_decoder decoder(instr, 
         imm,
 
@@ -75,7 +78,10 @@ end
 
         rs1,
         rs2,
-        rd
+        rd,
+
+        additional_mem_ops,
+        mem_op_increment_reg
              );
 
     reg [4:0] counter;
@@ -97,6 +103,9 @@ end
     assign addr_out[31:28] = 0;
 
     wire [31:0] next_pc = pc + {29'd0, instr_len, 1'b0};
+
+    wire debug_reg_wen;
+    wire [3:0] debug_rd;
 
     tinyqv_core core(clk,
         rstn,
@@ -138,7 +147,10 @@ end
         return_addr,
 
         interrupt_req,
-        interrupt_pending
+        interrupt_pending,
+
+        debug_reg_wen,
+        debug_rd
         );
 
 endmodule

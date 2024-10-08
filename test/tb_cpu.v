@@ -37,6 +37,16 @@ initial begin
 end
 `endif
 
+    wire        debug_instr_complete;
+    wire        debug_instr_valid;
+    wire        debug_interrupt_pending;
+    wire        debug_branch;
+    wire        debug_early_branch;
+    wire        debug_ret;
+    wire        debug_reg_wen;
+    wire        debug_counter_0;
+    wire [3:0] debug_rd;
+
     tinyqv_cpu cpu(
         clk,
         rstn,
@@ -60,7 +70,17 @@ end
         data_continue,
 
         data_ready,  // Transaction complete/data request can be modified.
-        data_in        
+        data_in,
+
+        debug_instr_complete,
+        debug_instr_valid,
+        debug_interrupt_pending,
+        debug_branch,
+        debug_early_branch,
+        debug_ret,
+        debug_reg_wen,
+        debug_counter_0,
+        debug_rd        
     );
 
 endmodule
