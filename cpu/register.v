@@ -56,7 +56,8 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 `elsif SCL_sky130_fd_sc_hd
                 sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );
                 `else
-                assign reg_buf = {registers[i][3:0], registers[i][31:8]};
+                // Assume SG13G2
+                sg13g2_buf_1 i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
                 `endif
                 always @(posedge clk) registers[i][31:4] <= reg_buf;
 
