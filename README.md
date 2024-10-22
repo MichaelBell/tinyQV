@@ -44,7 +44,7 @@ Fullish RV32EC, with a few exceptions:
 
 Only M mode is supported.
 
-Zcb is implemented, along with a few custom instructions (to document).
+Zcb and Zicond are implemented, along with a few custom instructions (to document).
 
 Unlike nanoV, EBREAK and ECALL will be implemented, trapping with cause 3 and 11 respectively.
 
@@ -127,9 +127,11 @@ Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 c
 | AND/OR/XOR  | 1      |
 | ADD/SUB     | 1      |
 | LUI/AUIPC   | 1      |
-| SLT         | 1      |
+| SLT         | 2      |
 | Shifts      | 2      |
 | Mul (32x16) | 2      |
+| CZERO (condition false) | 1 |
+| CZERO (condition true) | 2 |
 | JAL         | 5      |
 | RET         | 5      |
 | Other JALR  | 6      |
