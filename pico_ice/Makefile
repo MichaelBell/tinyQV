@@ -2,7 +2,7 @@
 PROJ      = tinyqv
 
 # Files
-FILES = pico_ice.v ../cpu/*.v ../peri/uart/*.v ../peri/spi/*.v
+FILES = pico_ice.v ../cpu/*.v ../peri/uart/*.v ../peri/spi/*.v ../peri/pwm/*.v
 
 .PHONY: pico_ice clean burn
 

@@ -34,6 +34,7 @@ module tinyQV_top (
     wire       qspi_flash_select;
     wire       qspi_ram_a_select;
     wire       qspi_ram_b_select;
+    wire       uio_out7;
     
     SB_IO #(
 //		.PIN_TYPE(6'b 1101_00),  // Registered in, out and oe
@@ -55,7 +56,7 @@ module tinyQV_top (
 		.PACKAGE_PIN({flash_cs, sck, ram_a_cs, ram_b_cs}),
         .OUTPUT_CLK(clk),
 		.OUTPUT_ENABLE({4{rst_n}}),
-		.D_OUT_0({qspi_flash_select, qspi_clk_out, qspi_ram_a_select, qspi_ram_b_select})
+		.D_OUT_0({qspi_flash_select, qspi_clk_out, qspi_ram_a_select, uio_out7})
 	);
 
     wire [27:0] addr;
@@ -135,7 +136,8 @@ module tinyQV_top (
     wire       uart_rts;
     wire       debug_uart_txd;
     wire       debug_signal;
-    reg  [7:0] gpio_out_sel;
+    wire       pwm_out;
+    reg  [9:0] gpio_out_sel;
     reg  [7:0] gpio_out;
 
     assign uo_out[0] = gpio_out_sel[0] ? gpio_out[0] : uart_txd;
@@ -149,7 +151,9 @@ module tinyQV_top (
     assign uo_out[5] = gpio_out_sel[5] ? gpio_out[5] : 
                        debug_register_data ? debug_rd_r[3] : spi_sck;
     assign uo_out[6] = gpio_out_sel[6] ? gpio_out[6] : debug_uart_txd;
-    assign uo_out[7] = gpio_out_sel[7] ? gpio_out[7] : debug_signal;
+    assign uo_out[7] = gpio_out_sel[8] ? pwm_out :
+                       gpio_out_sel[7] ? gpio_out[7] : debug_signal;
+    assign uio_out7 = gpio_out_sel[9] ? pwm_out : qspi_ram_b_select;
 
     // Address to peripheral map
     localparam PERI_NONE = 4'hF;
@@ -162,6 +166,7 @@ module tinyQV_top (
     localparam PERI_DEBUG_UART_STATUS = 4'h7;
     localparam PERI_SPI = 4'h8;
     localparam PERI_SPI_STATUS = 4'h9;
+    localparam PERI_PWM = 4'hA;
     localparam PERI_DEBUG = 4'hC;
 
     reg [3:0] connect_peripheral;
@@ -187,7 +192,7 @@ module tinyQV_top (
         case (connect_peripheral)
             PERI_GPIO_OUT:    data_from_read = {24'h0, uo_out};
             PERI_GPIO_IN:     data_from_read = {24'h0, ui_in};
-            PERI_GPIO_OUT_SEL:data_from_read = {24'h0, gpio_out_sel};
+            PERI_GPIO_OUT_SEL:data_from_read = {22'h0, gpio_out_sel};
             PERI_UART:        data_from_read = {24'h0, uart_rx_data};
             PERI_UART_STATUS: data_from_read = {30'h0, uart_rx_valid, uart_tx_busy};
             PERI_DEBUG_UART_STATUS: data_from_read = {31'h0, debug_uart_tx_busy};
@@ -205,7 +210,7 @@ module tinyQV_top (
         end
         if (write_n != 2'b11) begin
             if (connect_peripheral == PERI_GPIO_OUT) gpio_out <= data_to_write[7:0];
-            if (connect_peripheral == PERI_GPIO_OUT_SEL) gpio_out_sel <= data_to_write[7:0];
+            if (connect_peripheral == PERI_GPIO_OUT_SEL) gpio_out_sel <= data_to_write[9:0];
         end
     end
 
@@ -273,6 +278,16 @@ module tinyQV_top (
         .divider_in(data_to_write[1:0]),
         .read_latency_in(data_to_write[2])
     );
+
+    pwm_ctrl i_pwm(
+        .clk(clk),
+        .rstn(rst_reg_n),
+
+        .pwm(pwm_out),
+
+        .level(data_to_write[7:0]),
+        .set_level(connect_peripheral == PERI_PWM && write_n != 2'b11)
+    );    
 
     // Debug
     reg debug_register_data;
