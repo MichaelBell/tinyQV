@@ -102,7 +102,11 @@ endfunction
 //
 // Handle updates to the recieved data register.
 always @(posedge clk) begin : p_recieved_data
-    if(fsm_state >= FSM_RECV && fsm_state < FSM_STOP && next_bit ) begin
+    if(!resetn) begin
+        recieved_data <= {PAYLOAD_BITS{1'b0}};
+    end else if(fsm_state == FSM_IDLE             ) begin
+        recieved_data <= {PAYLOAD_BITS{1'b0}};
+    end else if(fsm_state >= FSM_RECV && fsm_state < FSM_STOP && next_bit ) begin
         recieved_data <= {bit_sample, recieved_data[PAYLOAD_BITS-1:1]};
     end
 end
