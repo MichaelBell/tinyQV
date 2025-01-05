@@ -69,30 +69,31 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire mem_op_increment_reg_de;
 
     tinyqv_decoder i_decoder(
-        instr, 
-        imm_de,
+        .instr(instr),
+        .imm(imm_de),
 
-        is_load_de,
-        is_alu_imm_de,
-        is_auipc_de,
-        is_store_de,
-        is_alu_reg_de,
-        is_lui_de,
-        is_branch_de,
-        is_jalr_de,
-        is_jal_de,
-        is_ret_de,
-        is_system_de,
+        .is_load(is_load_de),
+        .is_alu_imm(is_alu_imm_de),
+        .is_auipc(is_auipc_de),
+        .is_store(is_store_de),
+        .is_alu_reg(is_alu_reg_de),
+        .is_lui(is_lui_de),
+        .is_branch(is_branch_de),
+        .is_jalr(is_jalr_de),
+        .is_jal(is_jal_de),
+        .is_ret(is_ret_de),
+        .is_system(is_system_de),
 
-        instr_len_de,
-        alu_op_de,  // See tinyqv_alu for format
-        mem_op_de,
+        .instr_len(instr_len_de),
+        .alu_op(alu_op_de),  // See tinyqv_alu for format
+        .mem_op(mem_op_de),
 
-        rs1_de,
-        rs2_de,
-        rd_de,
-        additional_mem_ops_de,
-        mem_op_increment_reg_de);
+        .rs1(rs1_de),
+        .rs2(rs2_de),
+        .rd(rd_de),
+        .additional_mem_ops(additional_mem_ops_de),
+        .mem_op_increment_reg(mem_op_increment_reg_de)
+    );
 
     reg [31:0] imm;
 
