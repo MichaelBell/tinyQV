@@ -21,6 +21,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
     output reg [1:0]  data_read_n,  // 11 = no read,  00 = 8-bits, 01 = 16-bits, 10 = 32-bits
+    output            data_read_complete,
     output reg [31:0] data_out,
 
     output reg    data_continue,
@@ -277,6 +278,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             load_started <= 0;
         end
     end
+    assign data_read_complete = is_load && instr_complete_core && !stall_core;
 
     always @(posedge clk) begin
         if (is_store && no_write_in_progress) begin

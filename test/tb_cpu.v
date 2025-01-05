@@ -21,6 +21,7 @@ module tb_cpu (
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n,
     output reg [1:0]  data_read_n,
+    output reg [1:0]  data_read_complete,
     output reg [31:0] data_out,
 
     output        data_continue,
@@ -65,6 +66,7 @@ end
         data_addr,
         data_write_n,
         data_read_n,
+        data_read_complete,
         data_out,
 
         data_continue,
