@@ -63,7 +63,7 @@ CSRs:
 - MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8
 - MIE & MIP - Custom interrupts only to give granularity, might implement MTI if there's room for a timer.  Custom interrupts:
 ```
-    16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
+	16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
 	17 - triggered on rising edge of in1 (cleared by clearing bit in MIP)
 	18 - UART byte available  (cleared by reading byte from UART)
 	19 - UART writeable  (cleared by writing byte to UART)

@@ -294,51 +294,51 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     tinyqv_core #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS))  i_core(
-        clk,
-        rstn,
+        .clk(clk),
+        .rstn(rstn),
         
-        imm[counter+:4],
-        imm[11:0],
+        .imm(imm[counter+:4]),
+        .imm_lo(imm[11:0]),
 
-        is_load && instr_valid && no_write_in_progress,
-        is_alu_imm && instr_valid,
-        is_auipc && instr_valid,
-        is_store && instr_valid && no_write_in_progress,
-        is_alu_reg && instr_valid,
-        is_lui && instr_valid,
-        is_branch && instr_valid,
-        is_jalr && instr_valid,
-        is_jal && instr_valid,
-        is_system && instr_valid,
-        interrupt_core,
-        stall_core && !interrupt_core,
+        .is_load(is_load && instr_valid && no_write_in_progress),
+        .is_alu_imm(is_alu_imm && instr_valid),
+        .is_auipc(is_auipc && instr_valid),
+        .is_store(is_store && instr_valid && no_write_in_progress),
+        .is_alu_reg(is_alu_reg && instr_valid),
+        .is_lui(is_lui && instr_valid),
+        .is_branch(is_branch && instr_valid),
+        .is_jalr(is_jalr && instr_valid),
+        .is_jal(is_jal && instr_valid),
+        .is_system(is_system && instr_valid),
+        .is_interrupt(interrupt_core),
+        .is_stall(stall_core && !interrupt_core),
 
-        alu_op,
-        mem_op,
+        .alu_op(alu_op),
+        .mem_op(mem_op),
 
-        rs1,
-        rs2,
-        rd,
+        .rs1(rs1),
+        .rs2(rs2),
+        .rd(rd),
 
-        counter[4:2],
-        pc[counter+:4],
-        next_pc_for_core[counter+:4],
-        data_in[counter+:4],
-        data_ready_core,
+        .counter(counter[4:2]),
+        .pc(pc[counter+:4]),
+        .next_pc(next_pc_for_core[counter+:4]),
+        .data_in(data_in[counter+:4]),
+        .load_data_ready(data_ready_core),
 
-        data_out_slice,
-        addr_out,
-        address_ready,
-        instr_complete_core,
-        branch,
-        return_addr,
+        .data_out(data_out_slice),
+        .addr_out(addr_out),
+        .address_ready(address_ready),
+        .instr_complete(instr_complete_core),
+        .branch(branch),
+        .return_addr(return_addr),
 
-        interrupt_req,
-        interrupt_pending,
+        .interrupt_req(interrupt_req),
+        .interrupt_pending(interrupt_pending),
 
-        debug_reg_wen,
-        debug_rd
-        );
+        .debug_reg_wen(debug_reg_wen),
+        .debug_rd(debug_rd)
+    );
 
     /////// Instruction fetch ///////
 
