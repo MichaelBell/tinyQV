@@ -37,7 +37,8 @@ end
 
     wire [3:0] data_rs1;
     wire [3:0] data_rs2;
-    tinyqv_registers registers(clk, rstn, wr_en, last_counter[4:2], rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter+:4]);
+    wire [23:1] return_addr;
+    tinyqv_registers registers(clk, rstn, wr_en, last_counter[4:2], rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter+:4], return_addr);
 
     always @(posedge clk) begin
         rs1_out[last_counter+:4] <= data_rs1;
