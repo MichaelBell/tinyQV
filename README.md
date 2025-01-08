@@ -6,13 +6,13 @@ The aim of this design is to make a small microcontroller that is as fast as pra
 
 ## Overview
 
-RV32EC + a 32x16-bit multiplier
+RV32EC, Zcb, Zicond + a 32x16-bit multiplier
 
-Basic interrupt support  (not yet implemented)
+Basic interrupt support
 
 QSPI flash/memory interface.  This uses a shared bus as I didn't think it was worth dedicating the pins to allow two completely separate interfaces (that would make load/store to RAM much faster, but adds complexity and we run out of outputs).
 
-Peripherals so it can do basic microcontroller things, currently 1 UART and 1 SPI master, plus some GPIOs.
+Peripherals so it can do basic microcontroller things, currently 1 UART, 1 SPI controller and a single PWM channel, plus some GPIOs.
 
 ### QPSI PMOD
 
@@ -130,8 +130,8 @@ Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 c
 | SLT         | 2      |
 | Shifts      | 2      |
 | Mul (32x16) | 2      |
-| CZERO (condition false) | 1 |
-| CZERO (condition true) | 2 |
+| CZERO (condition true) | 1 |
+| CZERO (condition false) | 2 |
 | JAL         | 5      |
 | RET         | 5      |
 | Other JALR  | 6      |

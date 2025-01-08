@@ -4,6 +4,9 @@
    A QSPI controller for the QSPI PMOD:
      https://github.com/mole99/qspi-pmod
    
+   Expects the PSRAMs to be in QSPI mode and the flash to be in fast read quad I/O (EBh)
+   continuous read mode.
+
    To start reading:
    - Set addr_in and set start_read high for 1 cycle
    - Data is available on data_out on each cycle that data_ready is high
@@ -24,11 +27,9 @@
    out of reset to ensure the configuration is not accidentally modified.
    Note that tinyQV's reset is latched on the negative edge of clk, so reset must be 
    released while clock is high.
-   Valid values of latency are 0 - 5:
-   - 0: data is ready by the falling edge of the SPI clock immediately following the
-           last dummy cycle
-   - 1: data is ready by the rising edge of the next SPI clock (this is "normal")
-   - 2-5: read the data delayed by further half SPI clock cycles. 
+   Valid values of latency are 1 - 3:
+   - 1: data is ready on the rising edge of the next SPI clock (this is "normal")
+   - 2-3: read the data delayed by further half SPI clock cycles. 
 
    */
 module qspi_controller (
@@ -83,8 +84,8 @@ module qspi_controller (
     reg [ADDR_BITS-1:0]       addr;
     reg [DATA_WIDTH_BITS-1:0] data;
     reg [2:0] nibbles_remaining;
-    reg [2:0] delay_cycles_cfg;
-    reg [7:0] spi_in_buffer;
+    reg [1:0] delay_cycles_cfg;
+    reg [3:0] spi_in_buffer;
 
     assign data_out = data;
     assign busy = fsm_state != FSM_IDLE;
@@ -98,7 +99,7 @@ module qspi_controller (
             stop_txn_reg <= stop_txn && !stop_txn_now;
     end
 
-    reg [2:0] read_cycles_count;
+    reg [1:0] read_cycles_count;
 
     reg last_ram_a_sel;
     reg last_ram_b_sel;
@@ -107,7 +108,7 @@ module qspi_controller (
 
     always @(posedge clk) begin
         if (!rstn) begin
-            delay_cycles_cfg <= spi_data_in[2:0];
+            delay_cycles_cfg <= spi_data_in[1:0];
         end
     end
 
@@ -141,31 +142,31 @@ module qspi_controller (
                     spi_ram_b_select <= addr_in[24:23] != 2'b11;
                 end
             end else begin
-                if (read_cycles_count == 0) read_cycles_count <= 3'b001;
-                else read_cycles_count <= read_cycles_count - 3'b001;
+                if (read_cycles_count == 0) read_cycles_count <= 2'b01;
+                else read_cycles_count <= read_cycles_count - 2'b01;
 
                 if (fsm_state == FSM_STALLED) begin
                     spi_clk_out <= 0;
-                    if (!stall_txn && read_cycles_count < 3'b010) begin
+                    if (!stall_txn && !read_cycles_count[1]) begin
                         data_ready <= !is_writing;
                         if (is_writing) begin
                             fsm_state <= FSM_DATA;
-                            read_cycles_count <= 3'b000;
+                            read_cycles_count <= 2'b00;
                         end else begin
-                            fsm_state <= (delay_cycles_cfg[2:1] == 2'b00) ? FSM_DATA : FSM_STALL_RECOVER;
-                            read_cycles_count <= {1'b0, delay_cycles_cfg[2], delay_cycles_cfg[0]};
+                            fsm_state <= (delay_cycles_cfg[1] == 0) ? FSM_DATA : FSM_STALL_RECOVER;
+                            read_cycles_count <= {1'b0, delay_cycles_cfg[0]};
                         end
                     end
                 end else begin
                     spi_clk_out <= !spi_clk_out;
                     if (((fsm_state == FSM_DATA && !is_writing) || fsm_state == FSM_STALL_RECOVER) ? (read_cycles_count == 0) : spi_clk_out) begin
-                        if (nibbles_remaining == 0 || (fsm_state == FSM_STALL_RECOVER && delay_cycles_cfg[2])) begin
+                        if (nibbles_remaining == 0) begin
                             if (fsm_state == FSM_DATA || fsm_state == FSM_STALL_RECOVER) begin
                                 data_ready <= !is_writing && !stall_txn;
                                 nibbles_remaining <= (DATA_WIDTH_BITS >> 2)-1;
                                 if (stall_txn) begin
                                     fsm_state <= FSM_STALLED;
-                                    read_cycles_count <= delay_cycles_cfg | 3'b001;
+                                    read_cycles_count <= delay_cycles_cfg | 2'b01;
                                 end else begin
                                     fsm_state <= FSM_DATA;
                                 end
@@ -231,12 +232,10 @@ module qspi_controller (
             end
         end else if (read_cycles_count == 0 && fsm_state == FSM_DATA) begin
             data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
-        end else if (read_cycles_count == 3'b010 && fsm_state == FSM_STALL_RECOVER) begin
-            data <= {data[DATA_WIDTH_BITS-5:0], spi_in_buffer[7:4]};
         end else if (read_cycles_count == 0 && fsm_state == FSM_STALL_RECOVER) begin
-            data <= {data[DATA_WIDTH_BITS-5:0], spi_in_buffer[3:0]};
-        end else if (read_cycles_count[2:1] != 2'b00 && read_cycles_count[0] == 1'b0 && fsm_state == FSM_STALLED) begin
-            spi_in_buffer <= {spi_in_buffer[3:0], spi_data_in};
+            data <= {data[DATA_WIDTH_BITS-5:0], spi_in_buffer};
+        end else if (read_cycles_count == 2'b10 && fsm_state == FSM_STALLED) begin
+            spi_in_buffer <= spi_data_in;
         end
     end
 
@@ -357,7 +356,8 @@ module qspi_controller (
             if (!data_req) assume(data_in == $past(data_in));
 
             // Data in can only change the correct number of cycles after a falling edge of clock
-            assume(delay_cycles_cfg <= 5);
+            assume(delay_cycles_cfg <= 3);
+            assume(delay_cycles_cfg >= 1);
             if ((delay_cycles_cfg == 0 && !($past(spi_clk_out) && !spi_clk_out)) ||
                 (delay_cycles_cfg == 1 && !($past(spi_clk_out, 2) && !$past(spi_clk_out))) ||
                 (delay_cycles_cfg == 2 && !($past(spi_clk_out, 3) && !$past(spi_clk_out, 2))) ||
