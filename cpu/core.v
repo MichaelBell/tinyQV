@@ -3,7 +3,7 @@
    This core module takes decoded instructions and produces output data
  */
 
-module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
+module tinyqv_core #(parameter XLEN=32, parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -85,9 +85,9 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [3:0] data_rd;
     reg wr_en;
 
-    reg [31:0] tmp_data;
+    reg [XLEN-1:0] tmp_data;
 
-    tinyqv_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
+    tinyqv_registers #(.XLEN(XLEN), .NUM_REGS(NUM_REGS), .REG_ADDR_BITS(REG_ADDR_BITS))
         i_registers(clk, rstn, wr_en, counter, rs1, rs2, rd, data_rs1, data_rs2, data_rd, return_addr);
 
 
@@ -258,7 +258,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     always @(posedge clk) begin
         if (tmp_data_shift)
-            tmp_data <= {tmp_data_in, tmp_data[31:4]};
+            tmp_data <= {tmp_data_in, tmp_data[XLEN-1:4]};
     end
 
     assign addr_out = is_mret ? {4'b0000, mepc} : tmp_data[31:4];
@@ -299,7 +299,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         instr_retired <= instr_complete && !is_stall;
     end
     /* verilator lint_off PINMISSING */  // No carry
-    tinyqv_counter i_instrret (
+    tinyqv_counter #(.OUTPUT_WIDTH(4)) i_instrret (
         .clk(clk),
         .rstn(rstn),
         .add(instr_retired),

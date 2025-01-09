@@ -675,6 +675,8 @@ async def test_auipc(dut):
         assert dut.is_system.value == 0
         assert dut.instr_len.value == 4
 
+        if dut.XLEN.value == 64 and offset >> 19 == 1:
+            offset |= 0xffffffff00000
         assert dut.imm.value == offset << 12
         assert dut.alu_op.value == 0  # ADD
         
@@ -904,6 +906,8 @@ async def test_lui(dut):
         assert dut.is_system.value == 0
         assert dut.instr_len.value == 4
 
+        if dut.XLEN.value == 64 and imm >> 19 == 1:
+            imm |= 0xffffffff00000
         assert dut.imm.value == imm << 12
         
         assert dut.rd.value == reg
@@ -933,7 +937,10 @@ async def test_lui(dut):
         assert dut.is_system.value == 0
         assert dut.instr_len.value == 2
 
-        assert dut.imm.value == (imm << 12) & 0xffffffff
+        if dut.XLEN.value == 64:
+            assert dut.imm.value == (imm << 12) & 0xffffffffffffffff
+        else:
+            assert dut.imm.value == (imm << 12) & 0xffffffff
         
         assert dut.rd.value == reg
 
