@@ -110,29 +110,29 @@ module tinyqv_mem_ctrl (
 
     wire [1:0] write_qspi_data_byte_idx = qspi_data_byte_idx + (qspi_data_req ? 2'b01 : 2'b00);
     qspi_controller q_ctrl(
-        clk,
-        rstn,
+        .clk(clk),
+        .rstn(rstn),
 
-        spi_data_in,
-        spi_data_out,
-        spi_data_oe,
-        spi_clk_out,
+        .spi_data_in(spi_data_in),
+        .spi_data_out(spi_data_out),
+        .spi_data_oe(spi_data_oe),
+        .spi_clk_out(spi_clk_out),
 
-        spi_flash_select,
-        spi_ram_a_select,
-        spi_ram_b_select,
+        .spi_flash_select(spi_flash_select),
+        .spi_ram_a_select(spi_ram_a_select),
+        .spi_ram_b_select(spi_ram_b_select),
 
-        addr_in,
-        data_to_write[{write_qspi_data_byte_idx,3'b000} +:8],
-        start_read || start_instr,
-        start_write,
-        stall_txn || data_stall,
-        stop_txn,
+        .addr_in(addr_in),
+        .data_in(data_to_write[{write_qspi_data_byte_idx,3'b000} +:8]),
+        .start_read(start_read || start_instr),
+        .start_write(start_write),
+        .stall_txn(stall_txn || data_stall),
+        .stop_txn(stop_txn),
 
-        qspi_data_out,
-        qspi_data_req,
-        qspi_data_ready,
-        qspi_busy
+        .data_out(qspi_data_out),
+        .data_req(qspi_data_req),
+        .data_ready(qspi_data_ready),
+        .busy(qspi_busy)
     );
 
     always @(posedge clk) begin
