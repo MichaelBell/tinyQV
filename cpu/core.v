@@ -135,7 +135,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     ///////// Multiplier /////////
 
     wire [3:0] mul_out;
-    tinyqv_mul #(.B_BITS(16)) multiplier(clk, data_rs1 & {4{cycle[0]}}, tmp_data[15:0], mul_out);
+    tinyqv_mul #(.B_BITS(32)) multiplier(clk, data_rs1 & {4{cycle[0]}}, tmp_data, mul_out);
 
 
     ///////// Writeback /////////

@@ -472,11 +472,11 @@ async def test_multiply(dut):
 
     await send_instr(dut, InstructionADDI(x1, x0, 2).encode())
     await send_instr(dut, InstructionADDI(x2, x0, 3).encode())
-    await send_instr(dut, InstructionMUL16(x5, x1, x2).encode())
+    await send_instr(dut, InstructionMUL(x5, x1, x2).encode())
     assert await get_reg_value(dut, x5) == 6
-    await send_instr(dut, InstructionMUL16(x2, x5, x1).encode())
+    await send_instr(dut, InstructionMUL(x2, x5, x1).encode())
     assert await get_reg_value(dut, x2) == 12
-    await send_instr(dut, InstructionMUL16(x2, x5, x2).encode())
+    await send_instr(dut, InstructionMUL(x2, x5, x2).encode())
     assert await get_reg_value(dut, x2) == 12*6
 
 reg = [0] * 16
@@ -519,7 +519,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
-    Op(InstructionMUL16, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 2, "*"),
     Op(InstructionCZERO_EQZ, lambda rs1, rs2: 0 if reg[rs2] == 0 else reg[rs1], 0, "?0"),
     Op(InstructionCZERO_NEZ, lambda rs1, rs2: 0 if reg[rs2] != 0 else reg[rs1], 0, "?!0"),
 ]

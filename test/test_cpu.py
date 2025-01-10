@@ -185,7 +185,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
-    Op(InstructionMUL16, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*"),
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 2, "*"),
     Op(InstructionCZERO_EQZ, lambda rs1, rs2: 0 if reg[rs2] == 0 else reg[rs1], 0, "?0"),
     Op(InstructionCZERO_NEZ, lambda rs1, rs2: 0 if reg[rs2] != 0 else reg[rs1], 0, "?!0"),
 ]

@@ -503,7 +503,7 @@ async def test_alu_reg(dut):
         (InstructionSLL, 0b0001, False),
         (InstructionSRL, 0b0101, False),
         (InstructionSRA, 0b1101, False),
-        (InstructionMUL16, 0b1010, False),
+        (InstructionMUL, 0b1010, False),
         (InstructionCZERO_EQZ, 0b1110, False),
         (InstructionCZERO_NEZ, 0b1111, False),
     ]
@@ -573,14 +573,14 @@ async def test_alu_reg(dut):
         assert dut.rs2.value == src_reg
         assert dut.rd.value == dest_reg
 
-    def encode_cmul16(dest_reg, src_reg):
-        return encode_cr(dest_reg, src_reg, 0xA002)
+    def encode_cmul(dest_reg, src_reg):
+        return encode_cr(dest_reg, src_reg, 0x9c41)
     
     for i in range(100):
         src_reg = random.randint(1, 15)
         dest_reg = random.randint(1, 15)
 
-        dut.instr.value = encode_cmul16(dest_reg, src_reg)
+        dut.instr.value = encode_cmul(dest_reg, src_reg)
         await Timer(1, "ns")
 
         assert dut.is_load.value == 0

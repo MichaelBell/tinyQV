@@ -2,15 +2,6 @@ from riscvmodel.insn import InstructionMUL
 
 
 
-class InstructionMUL16:
-    def __init__(self, rd, rs1, rs2):
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
-
-    def encode(self):
-        return InstructionMUL(self.rd, self.rs1, self.rs2).encode() ^ 0x6000000
-
 class InstructionCZERO_EQZ:
     def __init__(self, rd, rs1, rs2):
         self.rd = rd

@@ -81,7 +81,7 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
             // Determine alu op
             if (is_load || is_auipc || is_store || is_jalr || is_jal) alu_op = 4'b0000;  // ADD
             else if (is_branch) alu_op = {1'b0, !instr[14], instr[14:13]};
-            else if (instr[26] && is_alu_reg) alu_op = {1'b1, instr[27:26], instr[13]};  // MUL or CZERO
+            else if (instr[25] && is_alu_reg) alu_op = {1'b1, instr[27], instr[25], instr[13]};  // MUL or CZERO
             else alu_op = {instr[30] && (instr[5] || instr[13:12] == 2'b01),instr[14:12]};
 
             mem_op = instr[14:12];
@@ -201,18 +201,22 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                             alu_op = 4'b0111;
                         end
                     end else if (instr[12]) begin
-                        is_alu_imm = 1;
-                        case (instr[4:2])
-                            3'b101: begin  // NOT
-                                    alu_op = 4'b0100; // XOR
-                                    imm = 32'hffffffff;
-                            end
-                            default: begin // ZEXT
-                                    alu_op = 4'b0111; // AND
-                                    imm = {16'h0000, {8{instr[3]}}, 8'hff};
-                            end
-                        endcase
-                        
+                        if (instr[6:5] == 2'b10) begin
+                            is_alu_reg = 1;
+                            alu_op = 4'b1010;
+                        end else begin
+                            is_alu_imm = 1;
+                            case (instr[4:2])
+                                3'b101: begin  // NOT
+                                        alu_op = 4'b0100; // XOR
+                                        imm = 32'hffffffff;
+                                end
+                                default: begin // ZEXT
+                                        alu_op = 4'b0111; // AND
+                                        imm = {16'h0000, {8{instr[3]}}, 8'hff};
+                                end
+                            endcase
+                        end                        
                     end else begin
                         is_alu_reg = 1;
                         case (instr[6:5])
@@ -291,13 +295,6 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
                         rs2 = instr[5:2];
                         rd  = instr[10:7];
                     end
-                end
-                5'b10101: begin // MUL16
-                    is_alu_reg = 1;
-                    alu_op = 4'b1010;
-                    rs1 = instr[10:7];
-                    rs2 = instr[5:2];
-                    rd  = instr[10:7];                    
                 end
                 5'b10110: begin // SWSP
                     is_store = 1;
