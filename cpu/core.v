@@ -433,9 +433,15 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             // mip
             12'h344: csr_read = (counter == 4) ? mip : 4'b0000;
 
+            // Cycle and instruction counters
             12'hC00: csr_read = cycle_count;
-            12'hC01: csr_read = time_count;
             12'hC02: csr_read = instrret_count;
+
+            // Time based on cycle
+            12'hC01: csr_read = time_count;
+
+            // mimpid (2)
+            12'hF13: csr_read = (counter == 0) ? 4'b0010 : 4'b0000;
             default: csr_read = 4'b0000;
         endcase
     end
