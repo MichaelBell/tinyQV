@@ -21,16 +21,7 @@ module latch_reg #(
 
     assign data_out = state;
 
-`else
-`ifdef ICE40
-    reg [WIDTH-1:0] state;
-    always @(posedge clk) begin
-        if (wen) state <= data_in;
-    end
-
-    assign data_out = state;
-
-`else
+`elsif SCL_sky130_fd_sc_hd
     wire clk_b;
     wire gated_clk;
 
@@ -38,6 +29,7 @@ module latch_reg #(
     /* verilator lint_off PINMISSING */
     sky130_fd_sc_hd__inv_1 CLKINV(.Y(clk_b), .A(clk));
 
+    /* verilator lint_off GENUNNAMED */
     generate
         if (WIDTH <= 6)
             sky130_fd_sc_hd__dlclkp_1 CG( .CLK(clk_b), .GCLK(gated_clk), .GATE(wen) );
@@ -46,15 +38,22 @@ module latch_reg #(
         else
             sky130_fd_sc_hd__dlclkp_4 CG( .CLK(clk_b), .GCLK(gated_clk), .GATE(wen) );
     endgenerate
+    /* verilator lint_on GENUNNAMED */
 
     genvar i;
     generate
-        for (i = 0; i < WIDTH; i = i+1) begin
+        for (i = 0; i < WIDTH; i = i+1) begin : gen_latch
             sky130_fd_sc_hd__dlxtp_1 state (.Q(data_out[i]), .D(data_in[i]), .GATE(gated_clk) );
         end
     endgenerate
     /* verilator lint_on PINMISSING */
-`endif
+`else
+    reg [WIDTH-1:0] state;
+    always @(posedge clk) begin
+        if (wen) state <= data_in;
+    end
+
+    assign data_out = state;
 `endif
 
 endmodule

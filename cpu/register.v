@@ -54,7 +54,9 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 `elsif ICE40
                 assign reg_buf = {registers[i][3:0], registers[i][31:8]};
                 `elsif SCL_sky130_fd_sc_hd
+                /* verilator lint_off PINMISSING */
                 sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );
+                /* verilator lint_on PINMISSING */
                 `else
                 // On SG13G2 no buffer is required, use direct assignment
                 assign reg_buf = {registers[i][3:0], registers[i][31:8]};

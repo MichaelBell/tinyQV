@@ -26,7 +26,7 @@ module spi_ctrl (
 
     // Configuration
     input        set_config,  // Set high to change the clock divider
-    input  [1:0] divider_in,  // SPI clock is input clock divided by 2 * (divider_in + 1)
+    input  [3:0] divider_in,  // SPI clock is input clock divided by 2 * (divider_in + 1)
     input        read_latency_in // If low reads are sampled half an SPI clock cycle after the rising edge, 
                                  // if high the sample is one SPI clock cycle later.
 );
@@ -34,9 +34,15 @@ module spi_ctrl (
     reg [7:0] data;
     reg [3:0] bits_remaining;
     reg       end_txn_reg;
-    reg [1:0] clock_count;
-    reg [1:0] clock_divider;
-    reg       read_latency;
+    reg [3:0] clock_count;
+    wire [3:0] clock_divider;
+    wire       read_latency;
+    latch_reg #(.WIDTH(5)) l_config (
+        .clk(clk),
+        .wen(!rstn || set_config),
+        .data_in(rstn ? {divider_in, read_latency_in} : 5'd0),
+        .data_out({clock_divider, read_latency})
+    );
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -57,7 +63,7 @@ module spi_ctrl (
                     spi_clk_out <= 0;
                 end
             end else begin
-                clock_count <= clock_count + 2'b01;
+                clock_count <= clock_count + 4'b0001;
                 if (clock_count == clock_divider) begin
                     clock_count <= 0;
                     spi_clk_out <= !spi_clk_out;
@@ -76,16 +82,6 @@ module spi_ctrl (
                     end
                 end
             end
-        end
-    end
-
-    always @(posedge clk) begin
-        if (!rstn) begin
-            clock_divider <= 1;
-            read_latency <= 0;
-        end else if (set_config) begin
-            clock_divider <= divider_in;
-            read_latency <= read_latency_in;
         end
     end
 

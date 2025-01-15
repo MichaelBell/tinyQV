@@ -9,29 +9,35 @@ module pwm_ctrl (
     input rstn,
 
     // PWM out
-    output       pwm,
+    output reg   pwm,
 
     // Configuration
-    input  [7:0] level,     // PWM level, read when set_leevl is high
+    input  [7:0] level,     // PWM level, read when set_level is high
     input        set_level
 );
 
-    reg [7:0] pwm_level;
+    wire [7:0] pwm_level;
+    latch_reg #(.WIDTH(8)) l_pwm_level (
+        .clk(clk),
+        .wen(!rstn || set_level),
+        .data_in(rstn ? level : 8'd0),
+        .data_out(pwm_level)
+    );
+
     reg [7:0] pwm_count;
 
     always @(posedge clk) begin
         if (!rstn) begin
-            pwm_level <= 0;
             pwm_count <= 0;
         end else begin
             // Wrap at 254 so that a level of 0-255 goes from always off to always on.
             pwm_count <= pwm_count + 1;
             if (pwm_count == 8'hfe) pwm_count <= 8'h00;
-
-            if (set_level) pwm_level <= level;
         end
     end
 
-    assign pwm = pwm_count < pwm_level;
+    always @(posedge clk) begin
+        pwm <= pwm_count < pwm_level; 
+    end
 
 endmodule
