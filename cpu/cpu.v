@@ -282,7 +282,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign data_read_complete = is_load && instr_complete_core && !stall_core;
 
     always @(posedge clk) begin
-        if (is_store && no_write_in_progress) begin
+        if (!rstn) begin
+            data_out <= 0;
+        end else if (is_store && no_write_in_progress) begin
             data_out[counter+:4] <= data_out_slice;
         end
     end

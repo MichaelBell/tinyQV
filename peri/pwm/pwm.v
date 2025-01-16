@@ -20,7 +20,7 @@ module pwm_ctrl (
     latch_reg #(.WIDTH(8)) l_pwm_level (
         .clk(clk),
         .wen(!rstn || set_level),
-        .data_in(rstn ? level : 8'd0),
+        .data_in(level),
         .data_out(pwm_level)
     );
 

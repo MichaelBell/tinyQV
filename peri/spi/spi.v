@@ -40,7 +40,7 @@ module spi_ctrl (
     latch_reg #(.WIDTH(5)) l_config (
         .clk(clk),
         .wen(!rstn || set_config),
-        .data_in(rstn ? {divider_in, read_latency_in} : 5'b00010),
+        .data_in({divider_in, read_latency_in}),
         .data_out({clock_divider, read_latency})
     );
 
