@@ -13,7 +13,7 @@ module tinyQV_time (
     input         clk,
     input         rstn,
 
-    input         time_pulse,  // Expected to be 1MHz clock
+    input         time_pulse,     // High for one clock once per microsecond.
 
     input         set_mtime,
     input         set_mtimecmp,
@@ -26,23 +26,30 @@ module tinyQV_time (
 );
 
     reg [31:0] mtime;
-    reg [31:0] mtimecmp;
+    wire [31:0] mtimecmp;
+
+    latch_reg32 l_mtimecmp (
+        .clk(clk),
+        .wen(!rstn || set_mtimecmp),
+        .data_in(data_in),
+        .data_out(mtimecmp)
+    );
 
     wire [31:0] comparison = mtime - mtimecmp;
     assign timer_interrupt = (comparison[31:30] == 0);
+    assign data_out = read_mtimecmp ? mtimecmp : mtime;
 
     wire [31:0] next_mtime = mtime + 32'd1;
 
     always @(posedge clk) begin
         if (!rstn) begin
             mtime <= 0;
-            mtimecmp <= 0;
         end else begin
-            if (set_mtimecmp) mtimecmp <= data_in;
-
             if (set_mtime) mtime <= data_in;
             else if (time_pulse) mtime <= next_mtime;
         end
     end
+
+    wire _unused = &{comparison[29:0], 1'b0};
 
 endmodule

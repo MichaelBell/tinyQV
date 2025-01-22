@@ -109,6 +109,7 @@ async def start(dut):
     await ClockCycles(dut.clk, 1)
     dut.rstn.value = 0
     dut.interrupt_req.value = 0
+    dut.timer_interrupt.value = 0
     await ClockCycles(dut.clk, 2)
     dut.instr_fetch_started.value = 0
     dut.instr_fetch_stopped.value = 0
@@ -450,6 +451,23 @@ async def test_interrupt(dut):
     # A second break is a double fault
     await send_instr(dut, 0x00100073) # EBREAK
     await expect_branch(dut, 0)
+
+    # Jump to a different address
+    await send_instr(dut, InstructionJAL(x0, 0x80).encode())
+    await expect_branch(dut, 0x80)
+
+    # Assert timer interrupt, but no interrupt yet as not enabled
+    dut.timer_interrupt.value = 1
+    await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0x80
+    await send_instr(dut, InstructionADDI(x1, x0, 0x80).encode())
+
+    # Enable the timer interrupt, it immediately fires
+    await send_instr(dut, InstructionCSRRW(x0, x1, csrnames.mie).encode())
+    await expect_branch(dut, 0x8)
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
+    assert await read_reg(dut, x2, False) == 0x80000007
 
 
 @cocotb.test()

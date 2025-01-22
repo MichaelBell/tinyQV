@@ -46,6 +46,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     output [23:1] return_addr, // On count 7 this is the low 24 bits of x1
 
     input [3:0] interrupt_req,
+    input       timer_interrupt,
     output interrupt_pending,
 
     output       debug_reg_wen,
@@ -311,21 +312,22 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     ///////// Traps and interrupts /////////    
 
     reg [17:16] mip_reg;
-    wire [19:16] mip = {interrupt_req[3:2], mip_reg};
-    reg [19:16] mie;
+    wire [4:0] mip = {timer_interrupt, interrupt_req[3:2], mip_reg};
+    reg [4:0] mie;
 
     reg [5:0] mcause;
     always @(posedge clk) begin
         if (!rstn) mcause <= 0;
         else if (counter == 0) begin
             if (is_interrupt) begin
-                mcause[5:2] <= 4'b1100;
+                mcause[5] <= 1;
                 casez (mip & mie)
-                    4'b???1: mcause[1:0] <= 2'b00;
-                    4'b??10: mcause[1:0] <= 2'b01;
-                    4'b?100: mcause[1:0] <= 2'b10;
-                    4'b1000: mcause[1:0] <= 2'b11;
-                    default: mcause[1:0] <= 2'b00;  // Shouldn't be possible
+                    5'b????1: mcause[4:0] <= 5'b10000;
+                    5'b???10: mcause[4:0] <= 5'b10001;
+                    5'b??100: mcause[4:0] <= 5'b10010;
+                    5'b?1000: mcause[4:0] <= 5'b10011;
+                    5'b10000: mcause[4:0] <= 5'b00111;
+                    default:  mcause[4:0] <= 5'b10000;  // Shouldn't be possible
                 endcase
             end else if (is_trap) begin
                 if (imm == 4'b0000)      mcause <= 6'd11;  // ECALL
@@ -385,11 +387,17 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         if (!rstn || is_double_fault) begin
             mie <= 0;
             mip_reg <= 0;
+        end else if (counter == 1) begin
+            if (imm_lo == 12'h304) begin
+                if (is_csr_write) mie[4] <= data_rs1[3];
+                else if (is_csr_set) mie[4] <= mie[4] | data_rs1[3];
+                else if (is_csr_clear) mie[4] <= mie[4] & ~data_rs1[3];
+            end
         end else if (counter == 4) begin
             if (imm_lo == 12'h304) begin
-                if (is_csr_write) mie <= data_rs1;
-                else if (is_csr_set) mie <= mie | data_rs1;
-                else if (is_csr_clear) mie <= mie & ~data_rs1;
+                if (is_csr_write) mie[3:0] <= data_rs1;
+                else if (is_csr_set) mie[3:0] <= mie[3:0] | data_rs1;
+                else if (is_csr_clear) mie[3:0] <= mie[3:0] & ~data_rs1;
             end else if (imm_lo == 12'h344) begin 
                 if (is_csr_write) mip_reg <= data_rs1[1:0];
                 else if (is_csr_set) mip_reg <= mip_reg | data_rs1[1:0];
@@ -419,7 +427,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                                                                  4'b0000;
             
             // mie
-            12'h304: csr_read = (counter == 4) ? mie : 4'b0000;
+            12'h304: csr_read = (counter == 1) ? {mie[4], 3'b000} :
+                                (counter == 4) ? mie[3:0] : 4'b0000;
 
             // mepc
             12'h341: csr_read = (counter <= 5) ? mepc[3:0] : 4'b0000;
@@ -431,7 +440,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                                                  4'b0000;
             
             // mip
-            12'h344: csr_read = (counter == 4) ? mip : 4'b0000;
+            12'h344: csr_read = (counter == 1) ? {mip[4], 3'b000} :
+                                (counter == 4) ? mip[3:0] : 4'b0000;
 
             // Cycle and instruction counters
             12'hC00: csr_read = cycle_count;

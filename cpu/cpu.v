@@ -17,6 +17,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input         instr_ready,
 
     input  [3:0]  interrupt_req,
+    input         timer_interrupt,
 
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
@@ -337,6 +338,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .return_addr(return_addr),
 
         .interrupt_req(interrupt_req),
+        .timer_interrupt(timer_interrupt),
         .interrupt_pending(interrupt_pending),
 
         .debug_reg_wen(debug_reg_wen),

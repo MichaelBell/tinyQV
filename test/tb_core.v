@@ -21,6 +21,7 @@ module tb_core (
 
     input interrupt,
     input [3:0] interrupt_req,
+    input timer_interrupt,
     output interrupt_pending
 );
 
@@ -147,6 +148,7 @@ end
         return_addr,
 
         interrupt_req,
+        timer_interrupt,
         interrupt_pending,
 
         debug_reg_wen,

@@ -15,9 +15,11 @@ module latch_reg #(
 
 `ifdef SIM
     reg [WIDTH-1:0] state;
+    /* verilator lint_off SYNCASYNCNET */
     always @(clk or wen or data_in) begin
         if (!clk && wen) state <= data_in;
     end
+    /* verilator lint_on SYNCASYNCNET */
 
     assign data_out = state;
 
@@ -27,7 +29,7 @@ module latch_reg #(
 
     // Lint for sky130 cells expects power pins, so disable the warning
     /* verilator lint_off PINMISSING */
-    sky130_fd_sc_hd__inv_1 CLKINV(.Y(clk_b), .A(clk));
+    sky130_fd_sc_hd__clkinv_1 CLKINV(.Y(clk_b), .A(clk));
 
     /* verilator lint_off GENUNNAMED */
     generate
@@ -55,5 +57,30 @@ module latch_reg #(
 
     assign data_out = state;
 `endif
+
+endmodule
+
+module latch_reg32 (
+    input wire clk,
+
+    input wire wen,                 // Write enable
+    input wire [31:0] data_in,      // Data to write during second half of clock when wen is high
+
+    output wire [31:0] data_out
+);
+
+    latch_reg #(.WIDTH(16)) l_lo (
+        .clk(clk),
+        .wen(wen),
+        .data_in(data_in[15:0]),
+        .data_out(data_out[15:0])
+    );
+
+    latch_reg #(.WIDTH(16)) l_hi (
+        .clk(clk),
+        .wen(wen),
+        .data_in(data_in[31:16]),
+        .data_out(data_out[31:16])
+    );
 
 endmodule
