@@ -22,7 +22,7 @@ module tinyQV_time (
     input         read_mtimecmp,  // data_out set to mtime if this is low.
     output [31:0] data_out,
 
-    output        timer_interrupt
+    output reg    timer_interrupt
 );
 
     reg [31:0] mtime;
@@ -36,7 +36,7 @@ module tinyQV_time (
     );
 
     wire [31:0] comparison = mtime - mtimecmp;
-    assign timer_interrupt = (comparison[31:30] == 0);
+    always @(posedge clk) timer_interrupt <= (comparison[31:30] == 0);
     assign data_out = read_mtimecmp ? mtimecmp : mtime;
 
     wire [31:0] next_mtime = mtime + 32'd1;
