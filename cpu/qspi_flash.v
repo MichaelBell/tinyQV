@@ -1,6 +1,14 @@
 /* Copyright 2023 (c) Michael Bell
 
    A QSPI read-only flash controller
+
+   Note this is no longer used by TinyQV, but is a reasonable reference
+   for a QSPI flash controller.
+   
+   The QSPI clock is driven at half the frequency of the project clock.  It
+   does not have any latency configuration, but given the latency of the mux 
+   in TT06+ it should work up to about 60MHz project clock (30MHz QSPI clock),
+   which is around the limit of the TT outputs anyway.
    
    To start reading:
    - Set addr_in and set start_read high for 1 cycle
@@ -123,7 +131,7 @@ module qspi_flash_controller #(parameter DATA_WIDTH_BYTES=2, parameter ADDR_BITS
     end
 
     always @(posedge clk) begin
-        if (fsm_state == FSM_DATA && !spi_clk_out) begin
+        if (fsm_state == FSM_DATA && spi_clk_out) begin
             data <= {data[DATA_WIDTH_BITS-5:0], spi_data_in};
         end
     end
