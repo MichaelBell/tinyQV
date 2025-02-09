@@ -3,6 +3,8 @@
 
    A very simple 8-bit PWM peripheral
    */
+   
+`default_nettype none
 
 module pwm_ctrl (
     input clk,
@@ -17,7 +19,7 @@ module pwm_ctrl (
 );
 
     wire [7:0] pwm_level;
-    latch_reg #(.WIDTH(8)) l_pwm_level (
+    latch_reg_n #(.WIDTH(8)) l_pwm_level (
         .clk(clk),
         .wen(!rstn || set_level),
         .data_in(level),

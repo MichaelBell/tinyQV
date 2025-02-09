@@ -9,6 +9,13 @@
 //
 // To save area, only 32-bit time and timecmp are implemented.
 // To handle wrap, interrupt will trigger if 0 <= time - timecmp < 2^30.
+//
+// TODO: This implementation is much larger than it needs to be.
+//       The mtime increment could be done by a much smaller adder over
+//       several clocks without breaking anything.
+//       Avoiding the large compare would only be very slightly harder.
+//       It might be nice if the 4-bit data and cycle count were an alternative
+//       interface for peripherals, that might significantly reduce routing congestion.
 module tinyQV_time (
     input         clk,
     input         rstn,
@@ -28,7 +35,7 @@ module tinyQV_time (
     reg [31:0] mtime;
     wire [31:0] mtimecmp;
 
-    latch_reg32 l_mtimecmp (
+    latch_reg32_p l_mtimecmp (
         .clk(clk),
         .wen(!rstn || set_mtimecmp),
         .data_in(data_in),

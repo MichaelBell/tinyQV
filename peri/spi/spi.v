@@ -5,6 +5,8 @@
    simple control of SPI LCDs.
    */
 
+`default_nettype none
+
 module spi_ctrl (
     input clk,
     input rstn,
@@ -37,7 +39,7 @@ module spi_ctrl (
     reg [3:0] clock_count;
     wire [3:0] clock_divider;
     wire       read_latency;
-    latch_reg #(.WIDTH(5)) l_config (
+    latch_reg_n #(.WIDTH(5)) l_config (
         .clk(clk),
         .wen(!rstn || set_config),
         .data_in({divider_in, read_latency_in}),

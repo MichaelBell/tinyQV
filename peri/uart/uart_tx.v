@@ -9,6 +9,8 @@
 // - UART transmitter module.
 //
 
+`default_nettype none
+
 module uart_tx #(parameter 
     BIT_RATE     = 9600,       // Input bit rate of the UART line, bits / sec
     CLK_HZ       = 50_000_000, // Clock frequency in hertz.
