@@ -94,7 +94,7 @@ async def set_reg_value(dut, reg, val):
     assert dut.addr_out.value.signed_integer == offset + 0x1000400
     dut.load_data_ready.value = 1
     dut.data_in.value = val
-    await ClockCycles(dut.clk, 16)
+    await ClockCycles(dut.clk, 8)
     assert dut.instr_complete.value == 1
     dut.load_data_ready.value = 0
     dut.data_in.value.assign("X")

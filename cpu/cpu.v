@@ -218,27 +218,32 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     wire [3:0] data_out_slice;
     reg data_ready_latch;
-    reg data_ready_core;
+    reg data_ready_sync;
+    wire data_ready_core;
     always @(posedge clk) begin
         if (!rstn) begin
             counter_hi <= 0;
-            data_ready_core <= 0;
+            data_ready_sync <= 0;
             data_ready_latch <= 0;
         end else begin
             counter_hi <= counter_hi + 1;
 
-            if (counter_hi == 3'd7) begin
+            if (counter_hi == 3'd0) begin
                 data_ready_latch <= 0;
                 if (data_ready || data_ready_latch) begin
-                    data_ready_core <= 1;
+                    data_ready_sync <= 1;
                 end else begin
-                    data_ready_core <= 0;
+                    data_ready_sync <= 0;
                 end
             end else if (!data_ready_latch) begin
                 data_ready_latch <= data_ready;
+            end else if (address_ready) begin
+                data_ready_latch <= 0;
             end
         end
     end
+
+    assign data_ready_core = (counter_hi == 3'd0) ? (data_ready || data_ready_latch) : data_ready_sync;
 
     always @(posedge clk) begin
         if (!rstn) begin

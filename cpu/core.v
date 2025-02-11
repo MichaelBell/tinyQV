@@ -228,7 +228,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     always @(posedge clk) begin
         if (counter == 0)
-            load_done <= load_data_ready && cycle[1] != 1'b0;
+            load_done <= load_data_ready && (cycle != 0);
     end
 
     assign address_ready = last_count && (cycle == 0) && (is_load || is_store);
