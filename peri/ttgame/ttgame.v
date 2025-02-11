@@ -29,6 +29,7 @@ module tt_game (
     reg [23:0] data_reg;
     reg [23:0] shift_reg;
     reg [1:0] game_latch_sync;
+    reg data_latch_wen;
 
     // Clock in the data using the game clock.
     // Note async reset because the will (probably) be no game clocks during reset.
@@ -42,9 +43,16 @@ module tt_game (
         else game_latch_sync <= {game_latch_sync[0], game_latch};
     end
 
+    // Use negedge clock to drive the data latch write enable as we are using positive clock latch register
+    // to improve timing on the data read from the CPU.
+    always @(negedge clk) begin
+        if (!rstn) data_latch_wen <= 1;
+        else data_latch_wen <= game_latch_sync[1];
+    end
+
     latch_reg_p #(.WIDTH(24)) l_data (
         .clk(clk),
-        .wen(!rstn || game_latch_sync[1]),
+        .wen(data_latch_wen),
         .data_in(shift_reg),
         .data_out(data_reg)
     );

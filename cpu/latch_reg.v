@@ -15,9 +15,16 @@ module latch_reg_n #(
 
 `ifdef SIM
     reg [WIDTH-1:0] state;
+
+    reg latched_wen;
+
+    // Simulate clock gate: wen is latched when clock is high.
+    always @(clk or wen)
+        if (clk) latched_wen <= wen;
+
     /* verilator lint_off SYNCASYNCNET */
-    always @(clk or wen or data_in) begin
-        if (!clk && wen) state <= data_in;
+    always @(clk or latched_wen or data_in) begin
+        if (!clk && latched_wen) state <= data_in;
     end
     /* verilator lint_on SYNCASYNCNET */
 
@@ -73,9 +80,16 @@ module latch_reg_p #(
 
 `ifdef SIM
     reg [WIDTH-1:0] state;
+
+    reg latched_wen;
+
+    // Simulate clock gate: wen is latched when clock is low.
+    always @(clk or wen)
+        if (!clk) latched_wen <= wen;
+
     /* verilator lint_off SYNCASYNCNET */
-    always @(clk or wen or data_in) begin
-        if (clk && wen) state <= data_in;
+    always @(clk or latched_wen or data_in) begin
+        if (clk && latched_wen) state <= data_in;
     end
     /* verilator lint_on SYNCASYNCNET */
 
