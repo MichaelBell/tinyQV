@@ -6,7 +6,7 @@ from cocotb.triggers import Timer, ClockCycles
 
 select = None
 
-async def start_read(dut):
+async def start_read(dut, clock_delay = False):
     global select
 
     await ClockCycles(dut.clk, 1, False)
@@ -42,12 +42,19 @@ async def start_read(dut):
         for i in range(2):
             await ClockCycles(dut.clk, 1, False)
             assert select.value == 0
-            assert dut.spi_clk_out.value == 1
             assert dut.spi_data_out.value == (cmd & 0xF0) >> 4
             assert dut.spi_data_oe.value == 0xF
             cmd <<= 4
+            if clock_delay:
+                assert dut.spi_clk_out.value == 0
+                await ClockCycles(dut.clk, 1, True)
+            assert dut.spi_clk_out.value == 1
+
             await ClockCycles(dut.clk, 1, False)
             assert select.value == 0
+            if clock_delay:
+                assert dut.spi_clk_out.value == 1
+                await ClockCycles(dut.clk, 1, True)
             assert dut.spi_clk_out.value == 0
 
     # Address
@@ -55,11 +62,18 @@ async def start_read(dut):
     for i in range(6):
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
-        assert dut.spi_clk_out.value == 1
         assert dut.spi_data_out.value == (addr >> (20 - i * 4)) & 0xF
         assert dut.spi_data_oe.value == 0xF
+        if clock_delay:
+            assert dut.spi_clk_out.value == 0
+            await ClockCycles(dut.clk, 1, True)
+        assert dut.spi_clk_out.value == 1
+
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
+        if clock_delay:
+            assert dut.spi_clk_out.value == 1
+            await ClockCycles(dut.clk, 1, True)
         assert dut.spi_clk_out.value == 0
 
     # Dummy
@@ -67,21 +81,36 @@ async def start_read(dut):
         for i in range(2):
             await ClockCycles(dut.clk, 1, False)
             assert select.value == 0
-            assert dut.spi_clk_out.value == 1
             assert dut.spi_data_oe.value == 0xF
             assert dut.spi_data_out.value == 0xA
+            if clock_delay:
+                assert dut.spi_clk_out.value == 0
+                await ClockCycles(dut.clk, 1, True)
+            assert dut.spi_clk_out.value == 1
             await ClockCycles(dut.clk, 1, False)
             assert select.value == 0
+            if clock_delay:
+                assert dut.spi_clk_out.value == 1
+                await ClockCycles(dut.clk, 1, True)
             assert dut.spi_clk_out.value == 0
 
     for i in range(4):
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
+        if clock_delay:
+            assert dut.spi_clk_out.value == 0
+            await ClockCycles(dut.clk, 1, True)
         assert dut.spi_clk_out.value == 1
         assert dut.spi_data_oe.value == 0
         await ClockCycles(dut.clk, 1, False)
         assert select.value == 0
-        assert dut.spi_clk_out.value == 0
+        if i != 3:
+            if clock_delay:
+                assert dut.spi_clk_out.value == 1
+                await ClockCycles(dut.clk, 1, True)
+            assert dut.spi_clk_out.value == 0
+        elif not clock_delay:
+            assert dut.spi_clk_out.value == 0
 
 async def start_write(dut, data):
     global select
@@ -331,6 +360,47 @@ async def test_stop(dut):
                 assert dut.spi_data_oe.value == 0
                 assert dut.data_ready.value == 0
 
+@cocotb.test()
+async def test_clock_delay(dut):
+    await reset(dut, 4)
+
+    for k in range(10):
+        await start_read(dut, True)
+
+        # Read
+        for j in range(10):
+            data = random.randint(0, 255)
+            for i in range(2):
+                dut.spi_data_in.value = (data >> (4 - i * 4)) & 0xF
+                await ClockCycles(dut.clk, 1, True)
+                assert dut.spi_clk_out.value == 0
+                await ClockCycles(dut.clk, 1, False)
+                assert select.value == 0
+                assert dut.spi_clk_out.value == 0
+                assert dut.spi_data_oe.value == 0
+                assert dut.data_ready.value == i
+                if i == 1: assert dut.data_out.value == data
+                await ClockCycles(dut.clk, 1, True)
+                assert dut.spi_clk_out.value == 1
+                await ClockCycles(dut.clk, 1, False)
+                assert select.value == 0
+                assert dut.spi_clk_out.value == 1
+                assert dut.data_ready.value == 0
+
+            if j == 9:
+                dut.stop_txn.value = 1
+
+        for i in range(10):
+            await ClockCycles(dut.clk, 1, True)
+            assert dut.spi_clk_out.value == 0
+            await ClockCycles(dut.clk, 1, False)
+            assert dut.spi_flash_select.value == 1
+            assert dut.spi_ram_a_select.value == 1
+            assert dut.spi_ram_b_select.value == 1
+            assert dut.spi_clk_out.value == 0
+            assert dut.spi_data_oe.value == 0
+            assert dut.data_ready.value == 0
+            dut.stop_txn.value = 0
 
 # TODO: This test is mostly nonsense
 @cocotb.test()
