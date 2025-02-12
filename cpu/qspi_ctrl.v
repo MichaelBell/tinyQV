@@ -258,7 +258,7 @@ module qspi_controller (
             end
             FSM_ADDR:   spi_data_out = addr[ADDR_BITS-1:ADDR_BITS-4];
             FSM_DUMMY1: spi_data_out = 4'b1010;
-            FSM_DATA:   spi_data_out = data[DATA_WIDTH_BITS-1:DATA_WIDTH_BITS-4];
+            FSM_DATA:   spi_data_out = is_writing ? data[DATA_WIDTH_BITS-1:DATA_WIDTH_BITS-4] : 4'b1111;
             default:    spi_data_out = 4'b1010;
         endcase
     end
