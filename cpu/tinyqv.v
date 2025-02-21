@@ -6,7 +6,7 @@
 `default_nettype none
 
 // TinyQV CPU and QSPI memory controller wrapper
-module tinyQV (
+module tinyQV #(parameter XLEN=32, parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -91,7 +91,7 @@ module tinyQV (
   reg rst_reg_n;
   always @(posedge clk) rst_reg_n <= rstn;
 
-  tinyqv_cpu cpu(
+  tinyqv_cpu #(.XLEN(XLEN), .NUM_REGS(NUM_REGS), .REG_ADDR_BITS(REG_ADDR_BITS)) cpu(
         .clk(clk),
         .rstn(rst_reg_n),
 
