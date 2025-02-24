@@ -21,7 +21,7 @@ module tinyQV (
     input  [31:0] data_in,
 
     // Interrupt requests: Bottom 2 bits trigger on rising edge, next two are a status
-    input   [3:0] interrupt_req,
+    input  [15:0] interrupt_req,
     input         timer_interrupt,
 
     // External SPI interface
