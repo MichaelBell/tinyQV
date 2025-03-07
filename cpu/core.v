@@ -322,11 +322,11 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             if (is_interrupt) begin
                 mcause[5] <= 1;
                 casez (mip & mie)
-                    5'b????1: mcause[4:0] <= 5'b10000;
-                    5'b???10: mcause[4:0] <= 5'b10001;
-                    5'b??100: mcause[4:0] <= 5'b10010;
-                    5'b?1000: mcause[4:0] <= 5'b10011;
-                    5'b10000: mcause[4:0] <= 5'b00111;
+                    5'b1????: mcause[4:0] <= 5'b00111;
+                    5'b0???1: mcause[4:0] <= 5'b10000;
+                    5'b0??10: mcause[4:0] <= 5'b10001;
+                    5'b0?100: mcause[4:0] <= 5'b10010;
+                    5'b01000: mcause[4:0] <= 5'b10011;
                     default:  mcause[4:0] <= 5'b10000;  // Shouldn't be possible
                 endcase
             end else if (is_trap) begin
