@@ -13,7 +13,7 @@ module latch_reg_n #(
     output wire [WIDTH-1:0] data_out
 );
 
-`ifdef SIM
+`ifdef SIM_LATCH
     reg [WIDTH-1:0] state;
 
     reg latched_wen;
@@ -78,7 +78,7 @@ module latch_reg_p #(
     output wire [WIDTH-1:0] data_out
 );
 
-`ifdef SIM
+`ifdef SIM_LATCH
     reg [WIDTH-1:0] state;
 
     reg latched_wen;
