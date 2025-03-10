@@ -7,7 +7,7 @@ TOPLEVEL_LANG ?= verilog
 
 CPUD = $(PWD)/../cpu
 VERILOG_SOURCES += $(CPUD)/decode.v $(PWD)/tb_decode.v
-COMPILE_ARGS    += -DSIM
+COMPILE_ARGS    += -DSIM -Ptb_decode.XLEN=$(XLEN)
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 TOPLEVEL = tb_decode
