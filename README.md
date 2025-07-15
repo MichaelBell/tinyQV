@@ -99,10 +99,10 @@ Overall this means that stores to RAM are likely to cost at least 20 SPI clocks 
 
 ## Address map
 
-0x0000000 - 0x0FFFFFF: Flash (CS0)
-0x1000000 - 0x17FFFFF: RAM A (CS1)
-0x1800000 - 0x1FFFFFF: RAM B (CS2)
-0x8000000 = 0x80007FF: Peripheral registers (see TT06 repo)
+0x0000000 - 0x0FFFFFF: Flash (CS0)<br>
+0x1000000 - 0x17FFFFF: RAM A (CS1)<br>
+0x1800000 - 0x1FFFFFF: RAM B (CS2)<br>
+0x8000000 = 0x80007FF: Peripheral registers (see integration repo)
 
 ## Pinout
 
