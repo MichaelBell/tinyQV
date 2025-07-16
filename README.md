@@ -138,9 +138,11 @@ Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 c
 | Branch (not taken) | 1 |
 | Branch (taken) | 7   |
 | Store to peripheral   | 1 | 
-| Store to PSRAM        | ~5    |
+| 8 or 16-bit store to PSRAM   | 6-7    |
+| 32-bit store to PSRAM        | 7-8    |
 | Load from peripheral  | 2 |
-| Load from flash/PSRAM | ~7    |
+| 8 or 16-bit load from flash/PSRAM | 8-9    |
+| 32-bit load from flash/PSRAM | 9-10    |
 
 ## FPGA testing
 
