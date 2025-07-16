@@ -170,7 +170,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             rs2 <= rs2 + {3'b000, mem_op_increment_reg};
             rd <= rd + 4'b0001;
             additional_mem_ops <= additional_mem_ops - 3'b001;
-        end else if (instr_complete_core && interrupt_pending) begin
+        end else if (instr_complete_core && !any_additional_mem_ops && interrupt_pending) begin
             instr_valid <= 0;
             interrupt_core <= 1;
         end else if ((counter_hi == 3'd7 && !instr_valid) || instr_complete || branch) begin
