@@ -498,28 +498,28 @@ async def test_context(dut):
 
     await send_instr(dut, encode_cscxt(0, 0, 2), False, 2)
     await expect_store(dut, 0x1000400) == data[0]
-    await expect_store(dut, 0x1000400) == data[1]
+    await expect_store(dut, 0x1000404) == data[1]
 
     for i in range(8):
         await load_reg(dut, 8+i, data[2+i])
 
     await send_instr(dut, encode_cscxt(16, 1, 7), False, 2)
     for i in range(7):
-        await expect_store(dut, 0x1000410) == data[i+3]
+        await expect_store(dut, 0x1000400 + ((0x10 + i*4) & 0x3F)) == data[i+3]
 
     for i in range(10):
         data[i] = random.randint(0, (1 << 32) - 1)
 
     await send_instr(dut, encode_clcxt(0, 0, 2), False, 2)
     await expect_load(dut, 0x1000400, data[0])
-    await expect_load(dut, 0x1000400, data[1])
+    await expect_load(dut, 0x1000404, data[1])
 
     assert await read_reg(dut, x1) == data[0]
     assert await read_reg(dut, x2) == data[1]
 
     await send_instr(dut, encode_clcxt(-0x200 & 0x3F0, 1, 7), False, 2)
     for i in range(7):
-        await expect_load(dut, 0x1000200, data[i+3])
+        await expect_load(dut, 0x1000200 + i*4, data[i+3])
 
     for i in range(7):
         assert await read_reg(dut, i+9) == data[i+3]
