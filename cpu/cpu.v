@@ -262,7 +262,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             data_continue <= 0;
         end else if (is_store && address_ready) begin
             data_write_n <= mem_op[1:0];
-            no_write_in_progress <= 0;
+            no_write_in_progress <= addr_out[27];     // Assume that all writes to peripherals (high addr bit) complete immediately.
             data_continue <= any_additional_mem_ops;
         end else if (data_ready) begin
             data_write_n <= 2'b11;
