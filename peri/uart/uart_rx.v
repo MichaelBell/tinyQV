@@ -43,10 +43,6 @@ localparam       COUNT_REG_LEN      = 1+$clog2(CYCLES_PER_BIT);
 // 
 
 //
-// Internally latched value of the uart_rxd line. Avoids metastable states.
-reg [1:0] rxd_reg;
-
-//
 // Storage for the recieved serial data.
 reg [PAYLOAD_BITS-1:0] recieved_data;
 
@@ -86,10 +82,10 @@ wire mid_bit      = cycle_counter == CYCLES_PER_BIT[COUNT_REG_LEN-1:0] / 2;
 // Handle picking the next state.
 function [3:0] next_fsm_state();
     case(fsm_state)
-        FSM_IDLE : next_fsm_state = rxd_reg[0]  ? FSM_IDLE  : FSM_START;
+        FSM_IDLE : next_fsm_state = uart_rxd  ? FSM_IDLE  : FSM_START;
         
         // Only go STOP -> READY on a valid STOP bit.
-        FSM_STOP : next_fsm_state = mid_bit     ? (rxd_reg[0] ? FSM_READY : FSM_IDLE) : FSM_STOP;
+        FSM_STOP : next_fsm_state = mid_bit     ? (uart_rxd ? FSM_READY : FSM_IDLE) : FSM_STOP;
 
         FSM_READY: next_fsm_state = uart_rx_read? FSM_IDLE  : FSM_READY;
 
@@ -115,7 +111,7 @@ always @(posedge clk) begin : p_bit_sample
     if(!resetn) begin
         bit_sample <= 1'b0;
     end else if (mid_bit) begin
-        bit_sample <= rxd_reg[0];
+        bit_sample <= uart_rxd;
     end
 end
 
@@ -149,16 +145,6 @@ always @(posedge clk) begin : p_rts
         uart_rts <= 1'b1;
     end else begin
         uart_rts <= fsm_state > FSM_START;  // RTS is active low, 0 when IDLE or START.
-    end
-end
-
-//
-// Responsible for updating the internal value of the rxd_reg.
-always @(posedge clk) begin : p_rxd_reg
-    if(!resetn) begin
-        rxd_reg     <= 2'b11;
-    end else begin
-        rxd_reg     <= {uart_rxd, rxd_reg[1]};
     end
 end
 
