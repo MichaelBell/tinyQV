@@ -117,7 +117,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [3:0] rs2;
     reg [3:0] rd;
     reg [2:0] additional_mem_ops;
-    reg [5:2] addr_offset;
+    reg [3:2] addr_offset;
     reg mem_op_increment_reg;
 
     reg interrupt_core;
@@ -166,13 +166,13 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_system <= 0;
             instr_len <= 2'b10;
             additional_mem_ops <= 3'b000;
-            addr_offset <= 4'b0000;
+            addr_offset <= 2'b00;
             interrupt_core <= 0;
         end else if (any_additional_mem_ops && instr_complete_core && !stall_core) begin
             rs2 <= rs2 + {3'b000, mem_op_increment_reg};
             rd <= rd + 4'b0001;
             additional_mem_ops <= additional_mem_ops - 3'b001;
-            addr_offset <= addr_offset + 4'b0001;
+            addr_offset <= addr_offset + 2'b01;
         end else if (instr_complete_core && !any_additional_mem_ops && interrupt_pending) begin
             instr_valid <= 0;
             interrupt_core <= 1;
@@ -197,7 +197,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 rs2 <= rs2_de;
                 rd <= rd_de;
                 additional_mem_ops <= additional_mem_ops_de;
-                addr_offset <= 4'b0000;
+                addr_offset <= 2'b00;
                 mem_op_increment_reg <= mem_op_increment_reg_de;
                 instr_valid <= !branch && !is_ret_de;
             end else begin
@@ -255,9 +255,9 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             // the address is routed
             data_addr[27:24] <= 4'b000;
         end else if (address_ready) begin
-            // Cycle address within 64-byte window for additional mem op instructions.
+            // Cycle address within 16-byte window for additional mem op instructions.
             // Note this only matters for peripherals - the memory controller ignores the address for data_continue.
-            data_addr <= {addr_out[27:6], addr_out[5:2] + addr_offset, addr_out[1:0]};
+            data_addr <= {addr_out[27:4], addr_out[3:2] + addr_offset, addr_out[1:0]};
         end
     end
 
