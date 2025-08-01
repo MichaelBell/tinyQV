@@ -131,6 +131,7 @@ module qspi_controller (
             spi_ram_a_select <= 1;
             spi_ram_b_select <= 1;
             data_req <= 0;
+            read_cycles_count <= 0;
         end else begin
             data_ready <= 0;
             data_req <= 0;
