@@ -215,8 +215,11 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     always @(*) begin
         instr_complete = 0;
         if (last_count) begin
-            if (is_auipc || is_lui || is_store || is_jal || is_jalr || is_system || is_stall || is_exception || is_branch)
+            if (is_auipc || is_lui || is_jal || is_jalr || is_system || is_stall || is_exception || is_branch)
                 instr_complete = 1;
+            else if (is_store)
+                if (tmp_data[31:30] == 2'b11) instr_complete = cycle[0];  // Writes to system addresses take 2 cycles
+                else instr_complete = 1;
             else if (is_czero)
                 instr_complete = cycle[0] || (cmp_out ^ alu_op[0]);
             else if (is_alu_imm || is_alu_reg)
