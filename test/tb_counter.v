@@ -31,7 +31,7 @@ end
         end
 
     wire [3:0] data;
-    tinyqv_counter i_mcount(clk, rstn, add, last_counter[4:2], data, cy_out);
+    tinyqv_counter i_mcount(clk, rstn, add, last_counter[4:2], 1'b0, 4'b0, data, cy_out);
 
     always @(posedge clk) begin
         val[last_counter+:4] <= data;
