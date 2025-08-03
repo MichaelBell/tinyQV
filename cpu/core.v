@@ -340,7 +340,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     // mstatus_mte is cleared while handling a trap, so need to latch double fault on counter==0.
     reg is_double_fault_r;
     always @(posedge clk) begin
-        if (counter == 0)
+        if (!rstn) is_double_fault_r <= 0;
+        else if (counter == 0)
             is_double_fault_r <= is_trap && !mstatus_mte;
     end
     wire is_double_fault = (counter == 0 && is_trap && !mstatus_mte) || is_double_fault_r;
