@@ -3,13 +3,13 @@
    Aim is to support RV32E 
  */
 
-module tb_decode (
+module tb_decode #(parameter XLEN=32) (
     input clk,
     input rstn,
 
     input [31:0] instr,
 
-    output [31:0] imm,
+    output [XLEN-1:0] imm,
 
     output is_load,
     output is_alu_imm,
@@ -44,7 +44,7 @@ initial begin
 end
 `endif
 
-    tinyqv_decoder decoder(instr, 
+    tinyqv_decoder #(.XLEN(XLEN), .REG_ADDR_BITS(4)) decoder(instr,
         imm,
 
         is_load,

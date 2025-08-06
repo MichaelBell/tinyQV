@@ -33,7 +33,7 @@ initial begin
 end
 `endif
 
-    qspi_flash_controller i_flash(
+    qspi_flash_controller #(.DATA_WIDTH_BYTES(2), .ADDR_BITS(24)) i_flash(
         clk,
         rstn,
 

@@ -87,7 +87,7 @@ module tinyQV_top (
     wire        data_ready;
     reg [31:0] data_from_read;
 
-    tinyQV i_tinyqv(
+    tinyQV #(.XLEN(32), .NUM_REGS(16), .REG_ADDR_BITS(4)) i_tinyqv(
         .clk(clk),
         .rstn(rst_reg_n),
 
