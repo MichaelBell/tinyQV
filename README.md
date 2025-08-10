@@ -1,8 +1,8 @@
 # Tiny-QV: A Risc-V SoC for Tiny Tapeout <!-- omit in toc -->
 
-A 4 bit at a time RV32 processor, similar to [nanoV](https://github.com/MichaelBell/nanoV) but optimized for QSPI RAM and Flash instead of SPI FRAM.
+A 4 bit at a time RV32 processor, optimized for use on Tiny Tapeout with QSPI RAM and Flash.
 
-The aim of this design is to make a small microcontroller that is as fast as practical given the Tiny Tapeout constraints, and sticking to a 2x2 tile size.
+The aim of this design is to make a small microcontroller that is as fast as practical given the Tiny Tapeout constraints.
 
 ## Overview
 
@@ -46,11 +46,11 @@ Only M mode is supported.
 
 Zcb and Zicond are implemented, along with a few custom instructions (to document).
 
-Unlike nanoV, EBREAK and ECALL will be implemented, trapping with cause 3 and 11 respectively.
+EBREAK and ECALL are implemented, trapping with cause 3 and 11 respectively.
 
-Hardcoding gp and tp - it doesn't seem to have caused any trouble in running general code on nanoV, and is similar to the "normal" ABI usage of these registers, so it seems a sensible saving.
+Hardcoding gp and tp doesn't significantly limit normal programs.  The C ABI reserves these registers, so it seems a sensible area saving.
 
-Will not bother trying to detect and correctly handle all traps/illegal/unsupported instructions, for area saving.  Not aiming for full compliance.
+TinyQV does not detect and correctly handle all traps/illegal/unsupported instructions, for area saving.  It is not aiming for full compliance with the Risc-V spec.
 
 MRET is required to return from trap and interrupt handlers
 
@@ -68,10 +68,28 @@ CSRs:
 	18 - UART byte available  (cleared by reading byte from UART)
 	19 - UART writeable  (cleared by writing byte to UART)
 ```
-
-- MEPC & MCAUSE - required for trap and interrupt handling.  At boot execution starts at address 0 with cause 0.
+- MEPC & MCAUSE - are implemented for trap and interrupt handling.  At boot execution starts at address 0 with cause 0.
 
 Immediate forms of CSR instructions are not implemented.  MEPC can only be written with CSRRW.
+
+### Custom instructions
+
+TinyQV and the [TinyQV toolchain](https://github.com/MichaelBell/riscv-gnu-toolchain/releases/) support the following custom instructions:
+
+| Instruction             | Operation |
+| ----------------------- | --------- |
+| `mul16 rd, rs1, rs2`    | Multiply rs1 by the bottom 16 bits of rs2. |
+| `lw2 rd, offset(rs1)`   | Load 2 words into rd and r(d+1) from consecutive addresses.  This uses the same encoding as ld, provided by the Zilsd extension, but without the alignment requirements. |
+| `lw4 rd, offset(rs1)`   | Load 4 words into rd to r(d+3) from consecutive addresses. |
+| `sw2 rs2, offset(rs1)`  | Store 2 words from rs2 and r(s2+1) to consecutive addresses.  This uses the same encoding as sd, provided by the Zilsd extension, but without the alignment requirements. |
+| `sw4 rs2, offset(rs1)`  | Store 4 words from rs2 to r(s2+3) to consecutive addresses. |
+| `sw4n rs2, offset(rs1)` | Store rs2 4 times to consecutive addresses. |
+
+When using the multiple word load and store instructions with peripherals the address wraps on a 16-byte boundary.  There is no such restriction when accessing flash or RAM.
+
+Additionally there are compressed forms of lw and sw when using tp as the base register, to improve peripheral access performance.
+
+The SDK provides 32 bit and 64 bit multiply implementations based on the 32x16 multiply.  However, if you know the top 16-bits of one of your arguments are 0 you can get significantly better performance using the `mul16` instruction directly.  The `mul32x16` function provided in `mul.h` facilitates this.
 
 ## Double fault / trap when inside a trap or interrupt handler
 
@@ -85,7 +103,7 @@ Having a separate trap enable bit means that it is not a double fault if a trap 
 
 ## QSPI memory interface
 
-Use flash in continuous read mode.  Writes to flash not supported.  TinyQV expects the flash to be in continuous read mode when the core is started.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.
+Use flash in continuous read mode.  Writes to flash not supported.  TinyQV expects the flash to be in continuous read mode when the core is started.  Bizarrely the datasheet doesn't seem to specify how to use continuous read mode - you have to look at W25Q80 instead, but this part is used with RP2040 and works (and it does mention continuous read in the overview), so I assume this is just a weird oversight.  The magic value for bits M7-M0 is 0xA0.  TinyQV expects the flash to be in continuous read mode when started.
 
 In continuous read mode a QSPI read can be initiated with a 12 cycle preamble (6 cycles for the 24-bit address, 2 cycles for the mode, 4 dummy cycles).
 
@@ -93,9 +111,7 @@ Use the PSRAM in QPI mode.  TinyQV expects the PSRAM to be in QPI mode when the 
 Writes have no delay cycles so 8 cycles + data (16 cycles total for a 32-bit write).
 Use Fast Read (0Bh) for reads, (note 66MHz limit).  Gives 12 cycles preamble for read, 20 cycles total for a 32-bit read.
 
-My thought is that code execution is only supported from the flash, this potentially simplifies things a little and also removes the need for handling the PSRAM refresh every 8us in the case of long instruction sequences with no loads/stores/branches - all reads and writes to the PSRAM will be short.
-
-Overall this means that stores to RAM are likely to cost at least 20 SPI clocks = 5 minimum cost instructions, and loads 24 = 6 minimum cost instructions.  So similar proportional cost as nanoV, but the baseline is 8x faster.
+Code execution is only supported from the flash, this simplifies things a little and also removes the need for handling the PSRAM refresh every 8us in the case of long instruction sequences with no loads/stores/branches - all reads and writes to the PSRAM will be short.
 
 ## Address map
 
@@ -150,4 +166,4 @@ Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 c
 
 ## FPGA testing
 
-Initial testing has been done with a Pico-Ice.  This allows things to be set up in a similar way to the TT demo board, with MicroPython loading the program into the flash on the QSPI PMOD, and then starting the FPGA.  See the pico-ice directory for implementation.
+See the [TT repo](https://github.com/TinyTapeout/ttsky25a-tinyQV/) for details on [testing on pico-ice](https://github.com/TinyTapeout/ttsky25a-tinyQV/tree/main/fpga/pico-ice) or [on other FPGAs](https://github.com/TinyTapeout/ttsky25a-tinyQV/tree/main/fpga/generic).
