@@ -356,7 +356,7 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    always @(posedge clk or negedge rstn) begin
+    always @(posedge clk) begin
         if (!rstn) begin
             mstatus_mte <= 1;
             mstatus_mie <= 1;
