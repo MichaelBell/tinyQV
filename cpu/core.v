@@ -356,8 +356,12 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    always @(posedge clk) begin
-        if (!rstn || is_double_fault) begin
+    always @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            mstatus_mte <= 1;
+            mstatus_mie <= 1;
+            mstatus_mpie <= 0;
+        end else if (is_double_fault) begin
             mstatus_mte <= 1;
             mstatus_mie <= 1;
             mstatus_mpie <= 0;
