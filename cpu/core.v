@@ -499,8 +499,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             // Time based on cycle
             12'hC01: csr_read = time_count;
 
-            // mimpid (2)
-            12'hF13: csr_read = (counter == 0) ? 4'b0010 : 4'b0000;
+            // mimpid (3)
+            12'hF13: csr_read = (counter == 0) ? 4'b0011 : 4'b0000;
             default: csr_read = 4'b0000;
         endcase
     end

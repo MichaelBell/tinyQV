@@ -12,7 +12,7 @@ Basic interrupt support
 
 QSPI flash/memory interface.  This uses a shared bus as I didn't think it was worth dedicating the pins to allow two completely separate interfaces (that would make load/store to RAM much faster, but adds complexity and we run out of outputs).
 
-Peripherals so it can do basic microcontroller things, currently 1 UART, 1 SPI controller and a single PWM channel, plus some GPIOs.
+Peripherals including a UART and Tiny Tapeout competition entries.
 
 ### QPSI PMOD
 
@@ -60,6 +60,7 @@ CSRs:
 - INSTRET - is implemented
 - MSTATUS - Only MIE and MPIE implemented, plus a non-standard trap enable bit at bit 2.
 - MISA - read only
+- MIMPID - indicates revision.  3 for this version.
 - MTVEC - not implemented and non-standard behaviour.  On reset pc is set to 0x0, traps set pc to 0x4, interrupts to 0x8
 - MIE & MIP - Custom interrupts only to give granularity, plus MTI.  Custom interrupts:
 ```
@@ -118,19 +119,13 @@ Code execution is only supported from the flash, this simplifies things a little
 0x0000000 - 0x0FFFFFF: Flash (CS0)<br>
 0x1000000 - 0x17FFFFF: RAM A (CS1)<br>
 0x1800000 - 0x1FFFFFF: RAM B (CS2)<br>
-0x8000000 = 0x80007FF: Peripheral registers (see integration repo)
+0x8000000 = 0x80007FF: Peripheral registers (see TT repo)
 
-## Pinout
+## Pinout and peripherals
 
-See [TT06 repo](https://github.com/MichaelBell/tt06-tinyQV/)
+See [TT repo](https://github.com/TinyTapeout/ttsky25a-tinyQV/)
 
-## Peripherals
-
-The same UART as in nanoV, configured for 115200 when running at 64MHz.
-
-An additional TX only UART for debugging, the SDK outputs stderr to this, its configured for 4Mbit at 64MHz clock.
-
-A simple SPI controller is implemented.  Target is to make using the ST7789 screen reasonably painless, so it supports toggling a D/C line.
+Peripherals are connected in the TT repo.  This version is setup to interface with a large number of peripherals.
 
 ## Instruction timing
 
@@ -158,7 +153,7 @@ Note that instruction fetch is only capable of reading 16-bits per cycle, so 1 c
 | Store word to PSRAM        | 6-7    |
 | Store 2 words to PSRAM        | 11-12    |
 | Store 4 words to PSRAM        | 19-20    |
-| Load from peripheral  | 2 |
+| Load from peripheral  | 3 |
 | 8 or 16-bit load from flash/PSRAM | 8-9    |
 | Load word from flash/PSRAM | 9-10    |
 | Load 2 words from flash/PSRAM | 15-16    |
