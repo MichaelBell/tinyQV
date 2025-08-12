@@ -164,6 +164,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             is_jalr <= 0;
             is_jal <= 0;
             is_system <= 0;
+            alu_op <= 0;
+            imm[9:8] <= 0;  // These particular bits need to be reset as the core relies on them being initialized.
             instr_len <= 2'b10;
             additional_mem_ops <= 3'b000;
             addr_offset <= 2'b00;
