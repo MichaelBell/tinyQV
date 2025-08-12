@@ -66,8 +66,9 @@ CSRs:
 ```
 	16 - triggered on rising edge of in0 (cleared by clearing bit in MIP)
 	17 - triggered on rising edge of in1 (cleared by clearing bit in MIP)
-	18 - UART byte available  (cleared by reading byte from UART)
-	19 - UART writeable  (cleared by writing byte to UART)
+	18 - UART writeable  (cleared by writing byte to UART)
+	19 - UART byte available  (cleared by reading byte from UART)
+	20-31 - TT user contributed peripheral interrupts
 ```
 - MEPC & MCAUSE - are implemented for trap and interrupt handling.  At boot execution starts at address 0 with cause 0.
 
