@@ -20,7 +20,7 @@ module tb_core (
     output [23:1] return_addr,
 
     input interrupt,
-    input [3:0] interrupt_req,
+    input [15:0] interrupt_req,
     input timer_interrupt,
     output interrupt_pending
 );

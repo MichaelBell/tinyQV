@@ -7,6 +7,9 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
     input add,
     input [2:0] counter,
 
+    input set,
+    input [3:0] data_in,
+
     output [OUTPUT_WIDTH-1:0] data,
     output cy_out
 );
@@ -14,7 +17,7 @@ module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
     reg [31:0] register;
     reg cy;
 
-    wire [4:0] increment_result = {1'b0, register[7:4]} + {4'b0000, (counter == 0) ? add : cy};
+    wire [4:0] increment_result = set ? {1'b0, data_in} : {1'b0, register[7:4]} + {4'b0000, (counter == 0) ? add : cy};
     always @(posedge clk) begin
         if (!rstn) begin
             register[3:0] <= 4'h0;

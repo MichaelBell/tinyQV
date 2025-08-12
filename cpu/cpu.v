@@ -17,7 +17,6 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input         instr_ready,
 
     input  [15:0] interrupt_req,
-    input         timer_interrupt,
 
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n, // 11 = no write, 00 = 8-bits, 01 = 16-bits, 10 = 32-bits
@@ -29,6 +28,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     input         data_ready,  // Transaction complete/data request can be modified.
     input  [31:0] data_in,
+
+    input         time_pulse,  // High for one clock once per microsecond.
 
     output        debug_instr_complete,
     output        debug_instr_valid,
@@ -138,6 +139,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     reg [4:2] counter_hi;
     wire [4:0] counter = {counter_hi, 2'b00};
 
+    wire timer_interrupt;
+    wire [3:0] timer_data;
+    wire is_timer_addr;
+
     reg no_write_in_progress;
     reg load_started;
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
@@ -223,6 +228,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     wire [3:0] data_out_slice;
+    wire data_ready_ext = data_ready && data_addr[27:26] != 2'b11;
     reg data_ready_latch;
     reg data_ready_sync;
     wire data_ready_core;
@@ -236,20 +242,20 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
             if (counter_hi == 3'd0) begin
                 data_ready_latch <= 0;
-                if (data_ready || data_ready_latch) begin
+                if (data_ready_ext || data_ready_latch || is_timer_addr) begin
                     data_ready_sync <= 1;
                 end else begin
                     data_ready_sync <= 0;
                 end
             end else if (!data_ready_latch) begin
-                data_ready_latch <= data_ready;
+                data_ready_latch <= data_ready_ext;
             end else if (address_ready) begin
                 data_ready_latch <= 0;
             end
         end
     end
 
-    assign data_ready_core = (counter_hi == 3'd0) ? (data_ready || data_ready_latch) : data_ready_sync;
+    assign data_ready_core = (counter_hi == 3'd0) ? (data_ready_ext || data_ready_latch || is_timer_addr) : data_ready_sync;
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -272,11 +278,16 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             data_write_n <= mem_op[1:0];
             no_write_in_progress <= addr_out[27];     // Assume that all writes to peripherals (high addr bit) complete immediately.
             data_continue <= any_additional_mem_ops;
-        end else if (data_ready) begin
+        end else if (data_ready_ext) begin
             data_write_n <= 2'b11;
             if (counter_hi == 3'b111) no_write_in_progress <= 1;
         end else if (counter_hi == 3'b111) begin
-            no_write_in_progress <= data_write_n == 2'b11;
+            if (data_ready_sync) begin
+                data_write_n <= 2'b11;
+                no_write_in_progress <= 1;
+            end else begin    
+                no_write_in_progress <= data_write_n == 2'b11;
+            end
         end
         
         if (is_load && !instr_complete) begin
@@ -285,7 +296,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 load_started <= 1;
                 data_continue <= any_additional_mem_ops;
             end 
-            if (data_ready && load_started) begin
+            if (data_ready_ext && load_started) begin
                 data_read_n <= 2'b11;
             end 
         end else begin
@@ -340,7 +351,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .counter(counter[4:2]),
         .pc(pc[counter+:4]),
         .next_pc(next_pc_for_core[counter+:4]),
-        .data_in(data_in[counter+:4]),
+        .data_in(is_timer_addr ? timer_data : data_in[counter+:4]),
         .load_data_ready(data_ready_core),
 
         .data_out(data_out_slice),
@@ -434,6 +445,22 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign instr = instr_valid ? {instr_data[next_pc_offset_hi], instr_data[next_pc_offset[2:1]]} : {instr_data[pc_offset_hi], instr_data[pc_offset]};
     assign pc = {8'h00, instr_data_start, pc_offset, 1'b0};
     assign next_pc_for_core = {8'h00, next_pc};
+
+    // Timer
+    assign is_timer_addr = data_addr[27:4] == 24'hfffff0 && data_addr[3] == 0;
+    wire is_timer_write = is_timer_addr && data_write_n != 2'b11;
+    tinyQV_time i_timer (
+        .clk(clk),
+        .rstn(rstn),
+        .time_pulse(time_pulse),
+        .set_mtime(is_timer_write && !data_addr[2]),
+        .set_mtimecmp(is_timer_write && data_addr[2]),
+        .data_in(data_out_slice),
+        .counter(counter_hi),
+        .read_mtimecmp(data_addr[2]),
+        .data_out(timer_data),
+        .timer_interrupt(timer_interrupt)
+    );
 
     // Debugging
     assign debug_instr_complete = instr_complete;

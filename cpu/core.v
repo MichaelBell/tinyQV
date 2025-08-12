@@ -280,6 +280,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .rstn(rstn),
         .add(1'b1),
         .counter(counter),
+        .set(1'b0),
+        .data_in(4'b0),
         .data(cycle_count_wide),
         .cy_out(cycle_cy)
     );
@@ -304,6 +306,8 @@ module tinyqv_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .rstn(rstn),
         .add(instr_retired),
         .counter(counter),
+        .set(1'b0),
+        .data_in(4'b0),
         .data(instrret_count)
     );
     /* verilator lint_on PINMISSING */

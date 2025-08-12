@@ -16,8 +16,8 @@ module tb_cpu (
     input  [15:0] instr_data_in,
     input         instr_ready,
 
-    input  [3:0]  interrupt_req,
-    input         timer_interrupt,
+    input  [15:0] interrupt_req,
+    input         time_pulse,
 
     output reg [27:0] data_addr,
     output reg [1:0]  data_write_n,
@@ -63,7 +63,6 @@ end
         instr_ready,
 
         interrupt_req,
-        timer_interrupt,
 
         data_addr,
         data_write_n,
@@ -75,6 +74,8 @@ end
 
         data_ready,  // Transaction complete/data request can be modified.
         data_in,
+
+        time_pulse,
 
         debug_instr_complete,
         debug_instr_valid,
