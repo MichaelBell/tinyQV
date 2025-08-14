@@ -44,6 +44,7 @@ module tinyqv_mem_ctrl (
     reg start_read;
     reg start_write;
     reg stop_txn;
+    reg continue_txn;
     reg [1:0] data_txn_n;
     reg [1:0] data_txn_len;
 
@@ -70,7 +71,6 @@ module tinyqv_mem_ctrl (
         start_write = 0;
         stop_txn = 0;
         data_txn_n = data_write_n & data_read_n;
-        data_txn_len = {data_txn_n[1], data_txn_n[1] | data_txn_n[0]};  // 0, 1 or 3 for 1, 2 or 4 byte txn
 
         if (qspi_busy || qspi_write_done) begin
             // A transaction is running
@@ -84,7 +84,7 @@ module tinyqv_mem_ctrl (
                         stop_txn = 1;
                     end
                 end
-            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len && !data_continue) begin
+            end else if ((qspi_data_ready || qspi_data_req) && qspi_data_byte_idx == data_txn_len && !continue_txn) begin
                 // Data transaction is complete
                 stop_txn = 1;
             end
@@ -123,7 +123,7 @@ module tinyqv_mem_ctrl (
         .spi_ram_b_select(spi_ram_b_select),
 
         .addr_in(addr_in),
-        .data_in(data_to_write[{write_qspi_data_byte_idx,3'b000} +:8]),
+        .data_in(qspi_data_buf[{write_qspi_data_byte_idx,3'b000} +:8]),
         .start_read(start_read || start_instr),
         .start_write(start_write),
         .stall_txn(stall_txn || data_stall),
@@ -162,6 +162,8 @@ module tinyqv_mem_ctrl (
     always @(posedge clk) begin
         if (qspi_data_ready) begin
             qspi_data_buf[{qspi_data_byte_idx,3'b000} +:8] <= qspi_data_out;
+        end else if (data_write_n != 2'b11 && (data_stall || start_write)) begin
+            qspi_data_buf <= data_to_write;
         end
     end
 
@@ -173,17 +175,36 @@ module tinyqv_mem_ctrl (
     end
 
     always @(posedge clk) begin
-        if (data_continue) begin
-            if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||
-                (qspi_data_ready && qspi_data_byte_idx == data_txn_len))
-                data_stall <= 1;
-            else if ((data_read_n != 2'b11 || data_write_n != 2'b11) && qspi_data_byte_idx == 2'b00 && !data_ready)
-                data_stall <= 0;
-        end else
-            data_stall <= 0;
+        if (!rstn)
+            data_txn_len <= 2'b11;
+        else if (start_read || start_write) begin
+            data_txn_len <= {data_txn_n[1], data_txn_n[1] | data_txn_n[0]};  // 0, 1 or 3 for 1, 2 or 4 byte txn
+        end
     end
 
-    assign data_ready = !instr_active && ((qspi_data_ready && qspi_data_byte_idx == data_txn_len) || qspi_write_done);
+    always @(posedge clk) begin
+        if (!rstn) begin
+            continue_txn <= 0;
+        end else begin
+            if (continue_txn) begin
+                if ((qspi_data_req && qspi_data_byte_idx + 2'b01 == data_txn_len) ||
+                    (qspi_data_ready && qspi_data_byte_idx == data_txn_len))
+                begin
+                    data_stall <= 1;
+                end else if (data_stall && qspi_data_byte_idx == 2'b00 && ((data_read_n != 2'b11 && !data_ready) || data_write_n != 2'b11)) begin
+                    data_stall <= 0;
+                    continue_txn <= data_continue;
+                end
+            end else begin
+                data_stall <= 0;
+                if (start_write || start_read) begin
+                    continue_txn <= data_continue;
+                end
+            end
+        end
+    end
+
+    assign data_ready = !instr_active && ((qspi_data_ready && qspi_data_byte_idx == data_txn_len) || (data_write_n != 2'b11 && ((data_stall && qspi_data_byte_idx == 2'b00) || start_write)));
     assign data_from_read = data_ready ? ({qspi_data_out, qspi_data_buf[23:16],
         data_txn_len == 2'b01 ? qspi_data_out : qspi_data_buf[15:8],
         data_txn_len == 2'b00 ? qspi_data_out : qspi_data_buf[7:0]}) : qspi_data_buf;
