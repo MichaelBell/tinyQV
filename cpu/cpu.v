@@ -259,9 +259,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     always @(posedge clk) begin
         if (!rstn) begin
-            // Only need to reset the pins that determine how
-            // the address is routed
-            data_addr[27:24] <= 4'b000;
+            data_addr <= 0;
         end else if (address_ready) begin
             // Cycle address within 16-byte window for additional mem op instructions.
             // Note this only matters for peripherals - the memory controller ignores the address for data_continue.
