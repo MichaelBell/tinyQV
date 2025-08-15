@@ -296,7 +296,7 @@ module tinyQV_top (
     always @(posedge clk) begin
         if (!rst_reg_n)
             debug_register_data <= 1'b0;
-        else if (connect_peripheral == PERI_DEBUG)
+        else if (write_n != 2'b11 && connect_peripheral == PERI_DEBUG)
             debug_register_data <= data_to_write[0];
     end
 
