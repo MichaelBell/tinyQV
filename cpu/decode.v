@@ -3,10 +3,10 @@
     Note parts of this are from the excellent FemtoRV by Bruno Levy et al.
 */
 
-module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
+module tinyqv_decoder #(parameter XLEN=32, parameter REG_ADDR_BITS=4) (
     input [31:0] instr,
 
-    output reg [31:0] imm,
+    output reg [XLEN-1:0] imm,
 
     output reg is_load,
     output reg is_alu_imm,
@@ -34,25 +34,25 @@ module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     output reg       mem_op_increment_reg
 );
 
-    wire [31:0] Uimm = {    instr[31],   instr[30:12], {12{1'b0}}};
-    wire [31:0] Iimm = {{21{instr[31]}}, instr[30:20]};
-    wire [31:0] Simm = {{21{instr[31]}}, instr[30:25],instr[11:7]};
-    wire [31:0] Bimm = {{20{instr[31]}}, instr[7],instr[30:25],instr[11:8],1'b0};
-    wire [31:0] Jimm = {{12{instr[31]}}, instr[19:12],instr[20],instr[30:21],1'b0};
+    wire [XLEN-1:0] Uimm = {{XLEN-31{instr[31]}}, instr[30:12], {12{1'b0}}};
+    wire [XLEN-1:0] Iimm = {{XLEN-11{instr[31]}}, instr[30:20]};
+    wire [XLEN-1:0] Simm = {{XLEN-11{instr[31]}}, instr[30:25],instr[11:7]};
+    wire [XLEN-1:0] Bimm = {{XLEN-12{instr[31]}}, instr[7],instr[30:25],instr[11:8],1'b0};
+    wire [XLEN-1:0] Jimm = {{XLEN-20{instr[31]}}, instr[19:12],instr[20],instr[30:21],1'b0};
 
     // Compressed immediates
-    wire [31:0] CLWSPimm     = {24'b0, instr[3:2], instr[12], instr[6:4], 2'b00};
-    wire [31:0] CSWSPimm     = {24'b0, instr[8:7], instr[12:9], 2'b00};
-    wire [31:0] CLSWimm      = {25'b0, instr[5], instr[12:10], instr[6], 2'b00};  // LW and SW
-    wire [31:0] CLSHimm      = {30'b0, instr[5], 1'b0};  // LH(U) and SH
-    wire [31:0] CLSBimm      = {30'b0, instr[5], instr[6]};  // LBU and SB
-    wire [31:0] CJimm        = {{21{instr[12]}}, instr[8], instr[10:9], instr[6], instr[7], instr[2], instr[11], instr[5:3], 1'b0};
-    wire [31:0] CBimm        = {{24{instr[12]}}, instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
-    wire [31:0] CALUimm      = {{27{instr[12]}}, instr[6:2]};          // ADDI, LI, shifts, ANDI
-    wire [31:0] CLUIimm      = {{15{instr[12]}}, instr[6:2], 12'b0};
-    wire [31:0] CADDI16SPimm = {{23{instr[12]}}, instr[4:3], instr[5], instr[2], instr[6], 4'b0};
-    wire [31:0] CADDI4SPimm  = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
-    wire [31:0] CSCXTimm     = {{23{instr[12]}}, instr[9:7], instr[10], instr[11], 4'b0};
+    wire [XLEN-1:0] CLWSPimm     = {{XLEN-8{1'b0}}, instr[3:2], instr[12], instr[6:4], 2'b00};
+    wire [XLEN-1:0] CSWSPimm     = {{XLEN-8{1'b0}}, instr[8:7], instr[12:9], 2'b00};
+    wire [XLEN-1:0] CLSWimm      = {{XLEN-7{1'b0}}, instr[5], instr[12:10], instr[6], 2'b00};  // LW and SW
+    wire [XLEN-1:0] CLSHimm      = {{XLEN-2{1'b0}}, instr[5], 1'b0};  // LH(U) and SH
+    wire [XLEN-1:0] CLSBimm      = {{XLEN-2{1'b0}}, instr[5], instr[6]};  // LBU and SB
+    wire [XLEN-1:0] CJimm        = {{XLEN-11{instr[12]}}, instr[8], instr[10:9], instr[6], instr[7], instr[2], instr[11], instr[5:3], 1'b0};
+    wire [XLEN-1:0] CBimm        = {{XLEN-8{instr[12]}}, instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
+    wire [XLEN-1:0] CALUimm      = {{XLEN-5{instr[12]}}, instr[6:2]};          // ADDI, LI, shifts, ANDI
+    wire [XLEN-1:0] CLUIimm      = {{XLEN-17{instr[12]}}, instr[6:2], 12'b0};
+    wire [XLEN-1:0] CADDI16SPimm = {{XLEN-9{instr[12]}}, instr[4:3], instr[5], instr[2], instr[6], 4'b0};
+    wire [XLEN-1:0] CADDI4SPimm  = {{XLEN-10{1'b0}}, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
+    wire [XLEN-1:0] CSCXTimm     = {{XLEN-9{instr[12]}}, instr[9:7], instr[10], instr[11], 4'b0};
 
     always @(*) begin
         additional_mem_ops = 3'b000;

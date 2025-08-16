@@ -9,6 +9,8 @@ verify/sby/
 test/__pycache__/
 test/*.vcd
 test/*results.xml
+test/*results-32.xml
+test/*results-64.xml
 stats.md
 test/sim_build/
 

@@ -58,7 +58,7 @@ end
     wire [2:0] additional_mem_ops;
     wire mem_op_increment_reg;
 
-    tinyqv_decoder decoder(instr, 
+    tinyqv_decoder #(.XLEN(32), .REG_ADDR_BITS(4)) decoder(instr,
         imm,
 
         is_load,
@@ -108,7 +108,7 @@ end
     wire debug_reg_wen;
     wire [3:0] debug_rd;
 
-    tinyqv_core core(clk,
+    tinyqv_core #(.XLEN(32), .NUM_REGS(16), .REG_ADDR_BITS(4)) core(clk,
         rstn,
         
         imm[counter+:4],

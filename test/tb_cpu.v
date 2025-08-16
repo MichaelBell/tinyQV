@@ -49,7 +49,7 @@ end
     wire        debug_counter_0;
     wire [3:0] debug_rd;
 
-    tinyqv_cpu cpu(
+    tinyqv_cpu #(.XLEN(32), .NUM_REGS(16), .REG_ADDR_BITS(4)) cpu(
         clk,
         rstn,
 
