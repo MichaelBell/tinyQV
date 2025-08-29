@@ -7,7 +7,7 @@ from cocotb.binary import BinaryValue
 
 select = None
 
-async def start_data_read(dut, len_code, read_follows_read):
+async def start_data_read(dut, len_code, read_follows_read, data_continue=False):
     global select
 
     await ClockCycles(dut.clk, 1, False)
@@ -28,6 +28,7 @@ async def start_data_read(dut, len_code, read_follows_read):
 
     dut.data_addr.value = addr
     dut.data_read_n.value = len_code
+    dut.data_continue.value = (1 if data_continue else 0)
     await ClockCycles(dut.clk, 1, False)
 
     if read_follows_read and last_select == select and select != dut.spi_flash_select:
@@ -92,7 +93,7 @@ async def start_data_read(dut, len_code, read_follows_read):
         assert select.value == 0
         assert dut.spi_clk_out.value == 0
 
-async def start_data_write(dut, data, len_code, delay_start):
+async def start_data_write(dut, data, len_code, delay_start, data_continue=False):
     global select
 
     assert dut.spi_data_oe.value == 0
@@ -110,6 +111,7 @@ async def start_data_write(dut, data, len_code, delay_start):
     dut.data_addr.value = addr
     dut.data_to_write.value = data
     dut.data_write_n.value = len_code
+    dut.data_continue.value = (1 if data_continue else 0)
     if delay_start:
         await ClockCycles(dut.clk, 1, False)
         assert dut.spi_data_oe.value == 0
@@ -117,6 +119,9 @@ async def start_data_write(dut, data, len_code, delay_start):
         assert dut.spi_ram_a_select.value == 1
         assert dut.spi_ram_b_select.value == 1
         assert dut.spi_clk_out.value == 0
+    await ClockCycles(dut.clk, 1, True)
+    assert dut.data_ready.value == 1
+    dut.data_write_n.value = 3
     await ClockCycles(dut.clk, 1, False)
 
     assert select.value == 0
@@ -224,7 +229,7 @@ async def test_data_write(dut):
             if i == 2 * read_len - 1:
                 assert select.value == 1
                 assert dut.spi_clk_out.value == 0
-                assert dut.data_ready.value == 1
+                assert dut.data_ready.value == 0
             else:
                 assert select.value == 0
                 assert dut.spi_clk_out.value == 0
@@ -245,8 +250,7 @@ async def test_data_read_continue(dut):
         read_len = 4
         num_reads = random.randint(2, 16)
         
-        await start_data_read(dut, len_code, k != 0)
-        dut.data_continue.value = 1
+        await start_data_read(dut, len_code, k != 0, True)
 
         for j in range(num_reads):
             
@@ -281,15 +285,15 @@ async def test_data_read_continue(dut):
 async def test_data_write_continue(dut):
     await reset(dut)
 
+    len_code = 2
+    read_len = 4
     for k in range(20):
-        len_code = 2
-        read_len = 4
         num_writes = random.randint(2, 16)
         
         data = random.randint(0, (1 << (8 * read_len)) - 1)
-        await start_data_write(dut, data, len_code, False)
-        dut.data_continue.value = 1
+        await start_data_write(dut, data, len_code, False, True)
 
+        # New data ready after QSPI transaction completes
         for j in range(num_writes):
             for i in range(2 * read_len):
                 assert dut.spi_data_oe.value == 0xF
@@ -307,8 +311,7 @@ async def test_data_write_continue(dut):
                     assert dut.data_ready.value == 0
 
             assert dut.spi_clk_out.value == 0
-            assert dut.data_ready.value == 1
-            dut.data_write_n.value = 3
+            assert dut.data_ready.value == 0
             if j != num_writes - 1:
                 assert select.value == 0
                 data = random.randint(0, (1 << (8 * read_len)) - 1)
@@ -318,10 +321,56 @@ async def test_data_write_continue(dut):
                 dut.data_write_n.value = len_code
                 dut.data_to_write.value = data
                 dut.data_continue.value = (1 if j != num_writes - 2 else 0)
+                await ClockCycles(dut.clk, 1)
+                assert dut.data_ready.value == 1
+                dut.data_write_n.value = 3
                 await ClockCycles(dut.clk, 2, False)
                 assert select.value == 0
                 assert dut.spi_clk_out.value == 0
             else:
+                assert select.value == 1
+        
+        await ClockCycles(dut.clk, random.randint(1,8), False)
+
+        num_writes = random.randint(2, 8)
+        
+        data = random.randint(0, (1 << (8 * read_len)) - 1)
+        await start_data_write(dut, data, len_code, False, True)
+
+        # New data ready almost immediately
+        for j in range(num_writes):
+            for i in range(2 * read_len):
+                assert dut.spi_data_oe.value == 0xF
+                assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
+                await ClockCycles(dut.clk, 1, False)
+                assert select.value == 0
+                assert dut.spi_clk_out.value == 1
+                assert dut.spi_data_oe.value == 0xF
+                assert dut.spi_data_out.value == (data >> (nibble_shift_order[i])) & 0xF
+                assert dut.data_ready.value == 0
+                await ClockCycles(dut.clk, 1, False)
+                if i == 0 and j != num_writes - 1:
+                    next_data = random.randint(0, (1 << (8 * read_len)) - 1)
+                    dut.data_write_n.value = len_code
+                    dut.data_to_write.value = next_data
+                    dut.data_continue.value = (1 if j != num_writes - 2 else 0)
+                if i != 2 * read_len - 1:
+                    assert select.value == 0
+                    assert dut.spi_clk_out.value == 0
+                    assert dut.data_ready.value == 0
+
+            await ClockCycles(dut.clk, 1)
+            assert dut.spi_clk_out.value == 0
+            if j != num_writes - 1:
+                assert dut.data_ready.value == 1
+                dut.data_write_n.value = 3
+                assert select.value == 0
+                data = next_data
+                await ClockCycles(dut.clk, 2, False)
+                assert select.value == 0
+                assert dut.spi_clk_out.value == 0
+            else:
+                await ClockCycles(dut.clk, 1, False)
                 assert select.value == 1
         
         await ClockCycles(dut.clk, random.randint(1,8), False)
