@@ -14,9 +14,9 @@ pico_ice:
 	yosys -p "synth_ice40 -abc9 -device u -top tinyQV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
-	@grep "   Number of cells" yosys.log
-	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("     SB_DFF* %25d\n", sum);}'
-	@grep "     SB_LUT" yosys.log
+	@egrep "[0-9]+ submodules" yosys.log | head -1
+	@egrep "[0-9]+   SB_DFF" yosys.log | awk '{sum+=$$1;}END{printf("%9d   SB_DFF*\n", sum/2);}'
+	@egrep "[0-9]+   SB_LUT" yosys.log | head -1
 	@echo
 
 	# Place and route using nextpnr
@@ -38,9 +38,9 @@ stats:
 	@grep "Max frequency.*clk" nextpnr.log | tail -1
 	@echo "| Item | Count |"
 	@echo "| ---- | ----- |"
-	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'
-	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("| SB_DFF* | %d |\n", sum);}'
-	@grep "     SB_LUT" yosys.log | awk '{printf("| %s | %s |\n", $$1, $$2);}'
+	@egrep "[0-9]+ submodules" yosys.log | head -1 | awk '{printf("| Cells | %s |\n", $$1);}'
+	@egrep "[0-9]+   SB_DFF" yosys.log | awk '{sum+=$$1;}END{printf("| SB_DFF* | %d |\n", sum/2);}'
+	@egrep "[0-9]+   SB_LUT" yosys.log | head -1 | awk '{printf("| %s | %s |\n", $$2, $$1);}'
 	@grep "     ICESTORM_LC" nextpnr.log | awk '{gsub(/\//, "", $$3);printf("| ICE40 LCs | %s |\n", $$3);}'
 
 clean:
