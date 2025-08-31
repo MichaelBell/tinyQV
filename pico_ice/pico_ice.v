@@ -19,8 +19,9 @@ module tinyQV_top (
         output [7:0] uo_out
 
 );
-    localparam CLOCK_FREQ = 14_000_000;
-
+    localparam CLOCK_MHZ = 14;
+    localparam CLOCK_FREQ = CLOCK_MHZ * 1_000_000;
+    
     // Register the reset on the negative edge of clock for safety.
     // This also allows the option of async reset in the design, which might be preferable in some cases
     reg rst_reg_n;
@@ -67,6 +68,8 @@ module tinyQV_top (
     wire [31:0] data_to_write;  // Currently only bottom byte used.
 /*verilator lint_on UNUSEDSIGNAL*/
 
+    wire time_pulse;
+
     wire        data_ready;
     reg [31:0] data_from_read;
 
@@ -100,6 +103,7 @@ module tinyQV_top (
         .data_in(data_from_read),
 
         .interrupt_req(interrupt_req),
+        .time_pulse(time_pulse),
 
         .spi_data_in(qspi_data_in),
         .spi_data_out(qspi_data_out),
@@ -253,6 +257,31 @@ module tinyQV_top (
         .uart_tx_data(data_to_write[7:0]),
         .uart_tx_busy(debug_uart_tx_busy) 
     );
+
+    // Time
+    reg [5:0] time_count;
+
+    generate
+        if (CLOCK_MHZ == 64) begin
+            always @(posedge clk) begin
+                if (!rst_reg_n) begin
+                    time_count <= 0;
+                end else begin
+                    time_count <= time_count + 1;
+                end
+            end
+        end else begin
+            always @(posedge clk) begin
+                if (!rst_reg_n) begin
+                    time_count <= 0;
+                end else begin
+                    if (time_count == (CLOCK_MHZ - 1)) time_count <= 0;
+                    else time_count <= time_count + 1;
+                end
+            end
+        end
+    endgenerate
+    assign time_pulse = time_count == (CLOCK_MHZ - 1);
 
     // SPI
     wire spi_start = write_n != 2'b11 && connect_peripheral == PERI_SPI;
