@@ -57,9 +57,11 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 /* verilator lint_off PINMISSING */
                 sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );
                 /* verilator lint_on PINMISSING */
-                `else
+		`elsif SCL_sg13g2_stdcell
                 // On SG13G2 no buffer is required, use direct assignment
                 assign reg_buf = {registers[i][3:0], registers[i][31:8]};
+		`else
+		gf180mcu_fd_sc_mcu7t5v0__dlyb_1 i_regbuf[31:4] ( .Z(reg_buf), .I({registers[i][3:0], registers[i][31:8]}) );
                 `endif
                 always @(posedge clk) registers[i][31:4] <= reg_buf;
 
