@@ -15,6 +15,7 @@ async def send_instr(dut, instr, fast=False, len=4):
     await ClockCycles(dut.clk, 1)
     dut.instr_fetch_started.value = 0
     dut.instr_ready.value = 0
+    dut.time_pulse.value = 0
     if not fast:
         await ClockCycles(dut.clk, 7)
     dut.instr_data_in.value = instr & 0xFFFF
@@ -109,7 +110,7 @@ async def start(dut):
     await ClockCycles(dut.clk, 1)
     dut.rstn.value = 0
     dut.interrupt_req.value = 0
-    dut.timer_interrupt.value = 0
+    dut.time_pulse.value = 0
     await ClockCycles(dut.clk, 2)
     dut.instr_fetch_started.value = 0
     dut.instr_fetch_stopped.value = 0
@@ -350,8 +351,12 @@ async def test_csr(dut):
 async def test_interrupt(dut):
     await start(dut)
 
+    # Set mtimecmp to 1 which will clear the timer interrupt
+    await send_instr(dut, InstructionADDI(x1, x0, 1).encode())
+    await send_instr(dut, InstructionSW(x0, x1, -0xfc).encode())
+
     # Jump to a different address
-    await send_instr(dut, InstructionJAL(x0, 0x100).encode())
+    await send_instr(dut, InstructionJAL(x0, 0xf8).encode())
     await expect_branch(dut, 0x100)
 
     # Assert interrupt, this should latch but no interrupt yet
@@ -457,7 +462,7 @@ async def test_interrupt(dut):
     await expect_branch(dut, 0x80)
 
     # Assert timer interrupt, but no interrupt yet as not enabled
-    dut.timer_interrupt.value = 1
+    dut.time_pulse.value = 1
     await send_instr(dut, InstructionNOP().encode())
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
     assert await read_reg(dut, x2, False) == 0x80
@@ -468,6 +473,12 @@ async def test_interrupt(dut):
     await expect_branch(dut, 0x8)
     await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mcause).encode())
     assert await read_reg(dut, x2, False) == 0x80000007
+
+    # Set mtime back to 0 which will clear the timer interrupt
+    await send_instr(dut, InstructionSW(x0, x0, -0x100).encode())
+    await send_instr(dut, InstructionNOP().encode())
+    await send_instr(dut, InstructionCSRRS(x2, x0, csrnames.mip).encode())
+    assert await read_reg(dut, x2, False) == 0
 
 
 @cocotb.test()
