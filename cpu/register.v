@@ -52,7 +52,7 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                         registers[i][3:0] <= registers[i][7:4];
                 end
 
-                tinyqv_buffer i_regbuf[31:4] (.X(reg_buf), .A(is_accessed ? {registers[i][3:0], registers[i][31:8]} : registers[i][31:4]));
+                assign reg_buf = is_accessed ? {registers[i][3:0], registers[i][31:8]} : registers[i][31:4];
                 always @(posedge clk) registers[i][31:4] <= reg_buf;
 
                 assign reg_access[i] = registers[i][7:4];
