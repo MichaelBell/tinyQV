@@ -39,20 +39,21 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             end else if (i == 4) begin : gen_reg_tp // tp is hardcoded to 0x08000000
                 assign reg_access[i] = {(counter == 6), 3'b0};
             end else begin : gen_reg_normal
-                wire is_accessed = (rs1 == i) || (rs2 == i) || (rd == i);
-                
+                wire is_read = (rs1 == i) || (rs2 == i);
+                wire is_written = wr_en && rd == i;
+                wire is_accessed = is_read || is_written;
+
                 wire [31:4] reg_buf;
-                tinyqv_buffer i_regbuf[31:4] (.X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}));
 
                 always @(posedge clk) begin
-                    if (is_accessed) begin
-                        if (wr_en && rd == i)
-                            registers[i][3:0] <= data_rd;
-                        else
-                            registers[i][3:0] <= registers[i][7:4];
-                        registers[i][31:4] <= reg_buf;
-                    end
+                    if (is_written)
+                        registers[i][3:0] <= data_rd;
+                    else if (is_read)
+                        registers[i][3:0] <= registers[i][7:4];
                 end
+
+                tinyqv_buffer i_regbuf[31:4] (.X(reg_buf), .A(is_accessed ? {registers[i][3:0], registers[i][31:8]} : registers[i][31:4]));
+                always @(posedge clk) registers[i][31:4] <= reg_buf;
 
                 assign reg_access[i] = registers[i][7:4];
             end
