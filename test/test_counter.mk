@@ -6,7 +6,7 @@ SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
 CPUD = $(PWD)/../cpu
-VERILOG_SOURCES += $(CPUD)/counter.v $(PWD)/tb_counter.v
+VERILOG_SOURCES += $(CPUD)/counter.v $(CPUD)/buffer.v  $(PWD)/tb_counter.v
 COMPILE_ARGS    += -DSIM
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file

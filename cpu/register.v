@@ -40,6 +40,9 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 assign reg_access[i] = {(counter == 6), 3'b0};
             end else begin : gen_reg_normal
                 wire is_accessed = (rs1 == i) || (rs2 == i) || (rd == i);
+                
+                wire [31:4] reg_buf;
+                tinyqv_buffer i_regbuf[31:4] (.X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}));
 
                 always @(posedge clk) begin
                     if (is_accessed) begin
@@ -47,7 +50,7 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                             registers[i][3:0] <= data_rd;
                         else
                             registers[i][3:0] <= registers[i][7:4];
-                        registers[i][31:4] <= {registers[i][3:0], registers[i][31:8]};
+                        registers[i][31:4] <= reg_buf;
                     end
                 end
 

@@ -43,20 +43,7 @@ module tinyQV_time (
     /* verilator lint_on PINMISSING */
 
     wire [31:4] reg_buf;
-    `ifdef SIM
-    /* verilator lint_off ASSIGNDLY */
-    buf #1 i_regbuf[31:4] (reg_buf, {mtimecmp[3:0], mtimecmp[31:8]});
-    /* verilator lint_on ASSIGNDLY */
-    `elsif ICE40
-    assign reg_buf = {mtimecmp[3:0], mtimecmp[31:8]};
-    `elsif SCL_sky130_fd_sc_hd
-    /* verilator lint_off PINMISSING */
-    sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({mtimecmp[3:0], mtimecmp[31:8]}) );
-    /* verilator lint_on PINMISSING */
-    `else
-    // On SG13G2 no buffer is required, use direct assignment
-    assign reg_buf = {mtimecmp[3:0], mtimecmp[31:8]};
-    `endif
+    tinyqv_buffer i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
     always @(posedge clk) mtimecmp[31:4] <= reg_buf;
 
     always @(posedge clk) begin
