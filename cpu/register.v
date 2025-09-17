@@ -39,31 +39,17 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
             end else if (i == 4) begin : gen_reg_tp // tp is hardcoded to 0x08000000
                 assign reg_access[i] = {(counter == 6), 3'b0};
             end else begin : gen_reg_normal
-                always @(posedge clk) begin
-                    if (wr_en && rd == i)
-                        registers[i][3:0] <= data_rd;
-                    else
-                        registers[i][3:0] <= registers[i][7:4];
-                end
+                wire is_accessed = (rs1 == i) || (rs2 == i) || (rd == i);
 
-                wire [31:4] reg_buf;
-                `ifdef SIM
-                /* verilator lint_off ASSIGNDLY */
-                buf #1 i_regbuf[31:4] (reg_buf, {registers[i][3:0], registers[i][31:8]});
-                /* verilator lint_on ASSIGNDLY */
-                `elsif ICE40
-                assign reg_buf = {registers[i][3:0], registers[i][31:8]};
-                `elsif SCL_sky130_fd_sc_hd
-                /* verilator lint_off PINMISSING */
-                sky130_fd_sc_hd__dlygate4sd3_1 i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );
-                /* verilator lint_on PINMISSING */
-		`elsif SCL_sg13g2_stdcell
-                // On SG13G2 no buffer is required, use direct assignment
-                assign reg_buf = {registers[i][3:0], registers[i][31:8]};
-		`else
-		gf180mcu_fd_sc_mcu7t5v0__dlyb_1 i_regbuf[31:4] ( .Z(reg_buf), .I({registers[i][3:0], registers[i][31:8]}) );
-                `endif
-                always @(posedge clk) registers[i][31:4] <= reg_buf;
+                always @(posedge clk) begin
+                    if (is_accessed) begin
+                        if (wr_en && rd == i)
+                            registers[i][3:0] <= data_rd;
+                        else
+                            registers[i][3:0] <= registers[i][7:4];
+                        registers[i][31:4] <= {registers[i][3:0], registers[i][31:8]};
+                    end
+                end
 
                 assign reg_access[i] = registers[i][7:4];
             end
