@@ -43,17 +43,14 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                 wire is_written = wr_en && rd == i;
                 wire is_accessed = is_read || is_written;
 
-                wire [31:4] reg_buf;
-
                 always @(posedge clk) begin
                     if (is_written)
                         registers[i][3:0] <= data_rd;
                     else if (is_read)
                         registers[i][3:0] <= registers[i][7:4];
+                    if (is_accessed)
+                        registers[i][31:4] <= {registers[i][3:0], registers[i][31:8]};
                 end
-
-                assign reg_buf = is_accessed ? {registers[i][3:0], registers[i][31:8]} : registers[i][31:4];
-                always @(posedge clk) registers[i][31:4] <= reg_buf;
 
                 assign reg_access[i] = registers[i][7:4];
             end
