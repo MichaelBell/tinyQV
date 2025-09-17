@@ -43,7 +43,7 @@ module tinyQV_time (
     /* verilator lint_on PINMISSING */
 
     wire [31:4] reg_buf;
-    tinyqv_buffer i_regbuf[31:4] ( .X(reg_buf), .A({register[3:0], register[31:8]}) );
+    tinyqv_buffer i_regbuf[31:4] ( .X(reg_buf), .A({mtimecmp[3:0], mtimecmp[31:8]}) );
     always @(posedge clk) mtimecmp[31:4] <= reg_buf;
 
     always @(posedge clk) begin
