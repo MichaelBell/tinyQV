@@ -275,6 +275,11 @@ async def test_jump(dut):
     await send_instr(dut, encode_cjalr(x0, x1))
     await expect_branch(dut, 0x1164, True)
 
+    await send_instr(dut, InstructionADDI(x1, x1, 0x40).encode())
+    await send_instr(dut, InstructionADDI(x2, x0, 0x40).encode())
+    await send_instr(dut, encode_cjalr(x0, x1))
+    await expect_branch(dut, 0x11a4, True)
+
 @cocotb.test()
 async def test_branch(dut):
     await start(dut)

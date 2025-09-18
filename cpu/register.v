@@ -34,6 +34,22 @@ module tinyqv_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         for (i = 0; i < 2**REG_ADDR_BITS; i = i + 1) begin
             if (i == 0 || i >= NUM_REGS) begin : gen_reg_zero
                 assign reg_access[i] = 0;
+            end else if (i == 1) begin : gen_reg_ra
+                // ra always rotates to ensure correct positioning for ret optimization
+                wire is_written = wr_en && rd == i;
+
+                always @(posedge clk) begin
+                    if (is_written)
+                        registers[i][3:0] <= data_rd;
+                    else
+                        registers[i][3:0] <= registers[i][7:4];
+                end
+
+                wire [31:4] reg_buf;
+                tinyqv_buffer i_regbuf[31:4] ( .X(reg_buf), .A({registers[i][3:0], registers[i][31:8]}) );                
+                always @(posedge clk) registers[i][31:4] <= reg_buf;
+
+                assign reg_access[i] = registers[i][7:4];
             end else if (i == 3) begin : gen_reg_gp // gp is hardcoded to 0x01000400
                 assign reg_access[i] = {1'b0, (counter == 2), 1'b0, (counter == 6)};
             end else if (i == 4) begin : gen_reg_tp // tp is hardcoded to 0x08000000
