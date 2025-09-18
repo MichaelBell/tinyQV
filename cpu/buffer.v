@@ -19,7 +19,7 @@ module tinyqv_buffer (
     // On SG13G2 no buffer is required, use direct assignment
     assign X = A;
     `else
-    gf180mcu_fd_sc_mcu7t5v0__dlyb_1 i_buf ( .Z(X), .I(A) );
+    gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_buf ( .Z(X), .I(A) );
     `endif
 
 endmodule
