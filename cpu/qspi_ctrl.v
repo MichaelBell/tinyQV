@@ -32,6 +32,8 @@
    - 2-3: read the data delayed by further half SPI clock cycles. 
 
    */
+`default_nettype none
+
 module qspi_controller (
     input clk,
     input rstn,

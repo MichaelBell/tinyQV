@@ -3,6 +3,8 @@
    This CPU module interfaces with memory, the instruction decoder and the core.
  */
 
+`default_nettype none
+
 module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,

@@ -3,6 +3,8 @@
     Note parts of this are from the excellent FemtoRV by Bruno Levy et al.
 */
 
+`default_nettype none
+
 module tinyqv_decoder #(parameter REG_ADDR_BITS=4) (
     input [31:0] instr,
 

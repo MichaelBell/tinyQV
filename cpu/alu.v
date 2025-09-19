@@ -22,6 +22,8 @@
       1111 CZERO.nez
 */
 
+`default_nettype none
+
 module tinyqv_alu (
     input [3:0] op,
     input [3:0] a,

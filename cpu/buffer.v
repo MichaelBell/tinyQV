@@ -1,5 +1,7 @@
 /* Tech specific buffer cell */
 
+`default_nettype none
+
 module tinyqv_buffer (
     input A,
     output X

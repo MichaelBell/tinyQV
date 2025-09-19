@@ -1,5 +1,7 @@
 /* Counter register for TinyQV */
 
+`default_nettype none
+
 module tinyqv_counter #(parameter OUTPUT_WIDTH=4) (
     input clk,
     input rstn,

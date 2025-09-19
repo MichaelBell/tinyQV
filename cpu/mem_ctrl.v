@@ -3,6 +3,8 @@
    This memory controller plumbs the outputs from the CPU into the Flash and RAM controllers
  */
 
+`default_nettype none
+
 module tinyqv_mem_ctrl (
     input clk,
     input rstn,
