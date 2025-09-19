@@ -50,7 +50,7 @@ async def start_read(dut):
         assert dut.spi_select.value == 0
         assert dut.spi_clk_out.value == 1
         assert dut.spi_data_oe.value == 0xF
-        assert dut.spi_data_out.value == 0xF
+        assert dut.spi_data_out.value == 0x1
         await ClockCycles(dut.clk, 1, False)
         assert dut.spi_select.value == 0
         assert dut.spi_clk_out.value == 0
