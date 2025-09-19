@@ -11,7 +11,7 @@ pico_ice:
 	#verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-MULTITOP $(FILES)
 
 	# synthesize using Yosys
-	yosys -p "synth_ice40 -abc9 -device u -top tinyQV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
+	yosys -p "synth_ice40 -abc9 -device u -top tinyQV_top -json $(PROJ).json" -DICE40 -DSYNTH_FPGA $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
 	@egrep "[0-9]+ submodules" yosys.log | head -1

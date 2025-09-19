@@ -11,7 +11,7 @@ module tinyqv_buffer (
     /* verilator lint_off ASSIGNDLY */
     buf #1 i_buf (X, A);
     /* verilator lint_on ASSIGNDLY */
-    `elsif ICE40
+    `elsif SYNTH_FPGA
     assign X = A;
     `elsif SCL_sky130_fd_sc_hd
     /* verilator lint_off PINMISSING */
