@@ -21,7 +21,9 @@ module tinyqv_buffer (
     // On SG13G2 no buffer is required, use direct assignment
     assign X = A;
     `else
+    /* verilator lint_off PINMISSING */
     gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_buf ( .Z(X), .I(A) );
+    /* verilator lint_on PINMISSING */
     `endif
 
 endmodule
