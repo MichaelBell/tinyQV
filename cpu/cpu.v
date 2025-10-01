@@ -145,6 +145,11 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [3:0] timer_data;
     wire is_timer_addr;
 
+    wire [3:0] scratch_data;
+    wire is_scratch_addr;
+    
+    wire is_internal_addr = is_timer_addr || is_scratch_addr;
+
     reg no_write_in_progress;
     reg load_started;
     wire stall_core = !instr_valid || ((is_store || is_load) && !no_write_in_progress);
@@ -244,7 +249,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
             if (counter_hi == 3'd0) begin
                 data_ready_latch <= 0;
-                if (data_ready_ext || data_ready_latch || is_timer_addr) begin
+                if (data_ready_ext || data_ready_latch || is_internal_addr) begin
                     data_ready_sync <= 1;
                 end else begin
                     data_ready_sync <= 0;
@@ -257,7 +262,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         end
     end
 
-    assign data_ready_core = (counter_hi == 3'd0) ? (data_ready_ext || data_ready_latch || is_timer_addr) : data_ready_sync;
+    assign data_ready_core = (counter_hi == 3'd0) ? (data_ready_ext || data_ready_latch || is_internal_addr) : data_ready_sync;
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -351,7 +356,8 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .counter(counter[4:2]),
         .pc(pc[counter+:4]),
         .next_pc(next_pc_for_core[counter+:4]),
-        .data_in(is_timer_addr ? timer_data : data_in[counter+:4]),
+        .data_in(is_timer_addr ? timer_data : 
+                 is_scratch_addr ? scratch_data : data_in[counter+:4]),
         .load_data_ready(data_ready_core),
 
         .data_out(data_out_slice),
@@ -461,6 +467,24 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         .data_out(timer_data),
         .timer_interrupt(timer_interrupt)
     );
+
+`ifdef NO_SCRATCH
+    assign is_scratch_addr = 0;
+    assign scratch_data = 0;
+`else
+    // Scratch
+    assign is_scratch_addr = data_addr[27:12] == 16'hffff && data_addr[11:9] == 3'b110;
+    wire [1:0] scratch_write_n = data_write_n | {2{!is_scratch_addr}};
+    tinyqv_scratch i_scratch (
+        .clk(clk),
+        .rstn(rstn),
+        .data_addr(address_ready ? addr_out[8:0] : data_addr[8:0]),
+        .data_write_n(scratch_write_n),
+        .counter(counter_hi),
+        .data_in(data_out_slice),
+        .data_out(scratch_data)
+    );
+`endif
 
     // Debugging
     assign debug_instr_complete = instr_complete;

@@ -8,6 +8,7 @@ TOPLEVEL_LANG ?= verilog
 CPUD = $(PWD)/../cpu
 VERILOG_SOURCES += $(CPUD)/cpu.v $(CPUD)/decode.v $(CPUD)/core.v $(CPUD)/alu.v $(CPUD)/register.v $(CPUD)/counter.v $(CPUD)/time.v $(CPUD)/buffer.v  $(PWD)/tb_cpu.v
 COMPILE_ARGS    += -DSIM
+COMPILE_ARGS    += -DNO_SCRATCH
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 TOPLEVEL = tb_cpu

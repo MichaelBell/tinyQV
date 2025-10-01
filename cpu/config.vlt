@@ -1,0 +1,5 @@
+`verilator_config
+lint_off -file "*/gf180mcu_fd_ip_sram__sram512x8m8wm1.v"
+lint_off -rule MINTYPMAXDLY -file "*/gf180mcu_fd_ip_sram__sram512x8m8wm1.v"
+lint_off -rule SPECIFYIGN -file "*/gf180mcu_fd_ip_sram__sram512x8m8wm1.v"
+
