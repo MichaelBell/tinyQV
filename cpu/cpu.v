@@ -5,6 +5,8 @@
 
 `default_nettype none
 
+`define NO_SCRATCH
+
 module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
