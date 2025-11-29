@@ -9,7 +9,8 @@ module tinyqv_buffer (
 
     `ifdef SIM
     /* verilator lint_off ASSIGNDLY */
-    buf #1 i_buf (X, A);
+    //buf #1 i_buf (X, A);
+    assign X = A;
     /* verilator lint_on ASSIGNDLY */
     `elsif SYNTH_FPGA
     assign X = A;
