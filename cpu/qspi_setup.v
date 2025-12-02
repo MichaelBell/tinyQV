@@ -41,6 +41,7 @@ module qspi_setup (
             fsm_state <= 0;
             counter <= 0;
             spi_data_oe <= 4'b0000;
+            spi_data_out <= 4'b0000;
             spi_flash_select <= 1;
             spi_ram_a_select <= 1;
             spi_ram_b_select <= 1;            
