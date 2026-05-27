@@ -21,6 +21,8 @@ module tinyqv_buffer (
     `elsif SCL_sg13g2_stdcell
     // On SG13G2 no buffer is required, use direct assignment
     assign X = A;
+    `elsif SCL_gf180mcu_as_sc_mcu7t3v3
+    gf180mcu_as_sc_mcu7t3v3__dlybuff_2 i_buf ( .Y(X), .A(A) );
     `else
     /* verilator lint_off PINMISSING */
     gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_buf ( .Z(X), .I(A) );

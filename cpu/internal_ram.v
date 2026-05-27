@@ -26,7 +26,7 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire [1:0] byte_in_word;
 
     /* verilator lint_off PINMISSING */
-    gf180mcu_fd_ip_sram__sram512x8m8wm1 i_sram (
+    gf180mcu_ocd_ip_sram__sram512x8m8wm1 i_sram (
         .CLK(clk),
         .CEN(!rstn),
         .GWEN(write_enable_n),
