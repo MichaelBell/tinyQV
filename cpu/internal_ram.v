@@ -52,8 +52,8 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     //   Therefore, increment by 1 on the second half of each byte.
     //   Note the first byte is read on the last count of the previous cycle (this is OK because the 
     //   address is already complete by then).
-    // Can use XOR instead of ADD because we assume the address is aligned for the width of the transaction.
-    assign byte_in_word = (counter[2:1] + {1'b0, counter[0] && (data_write_n == 2'b11)}) ^ data_addr[1:0];
+    // Can use OR instead of ADD because we assume the address is aligned for the width of the transaction.
+    assign byte_in_word = (counter[2:1] + {1'b0, counter[0] && (data_write_n == 2'b11)}) | data_addr[1:0];
 
 endmodule
 `endif
