@@ -473,12 +473,12 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign scratch_data = 0;
 `else
     // Scratch
-    assign is_scratch_addr = data_addr[27:12] == 16'hffff && data_addr[11:9] == 3'b110;
+    assign is_scratch_addr = data_addr[27:14] == 14'h3fff && data_addr[13:10] >= 4'b0110 && data_addr[13:9] != 5'b11111;
     wire [1:0] scratch_write_n = data_write_n | {2{!is_scratch_addr}};
     tinyqv_scratch i_scratch (
         .clk(clk),
         .rstn(rstn),
-        .data_addr(address_ready ? addr_out[8:0] : data_addr[8:0]),
+        .data_addr(address_ready ? addr_out[13:0] : data_addr[13:0]),
         .data_write_n(scratch_write_n),
         .counter(counter_hi),
         .data_in(data_out_slice),
