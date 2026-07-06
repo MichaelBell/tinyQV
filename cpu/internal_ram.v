@@ -26,9 +26,13 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire [1:0] byte_in_word;
 
     /* verilator lint_off PINMISSING */
+    // Delay the CEN to fix long hold
+    wire cen;
+    gf180mcu_as_sc_mcu7t3v3__dlybuff_2 i_cen_delay (.A(!rstn), .Y(cen));
+
     gf180mcu_ocd_ip_sram__sram512x8m8wm1 i_sram (
         .CLK(clk),
-        .CEN(!rstn),
+        .CEN(cen),
         .GWEN(write_enable_n),
         .WEN(write_bit_enable_n),
         .A({data_addr[ADDR_BITS-1:2], byte_in_word}),
