@@ -5,8 +5,6 @@
 
 `default_nettype none
 
-`define NO_SCRATCH
-
 module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
@@ -477,10 +475,10 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     // Scratch
     assign is_scratch_addr = data_addr[27:12] == 16'hffff && data_addr[11:9] == 3'b110;
     wire [1:0] scratch_write_n = data_write_n | {2{!is_scratch_addr}};
-    tinyqv_scratch i_scratch (
+    tinyqv_scratch #(.ADDR_BITS(8)) i_scratch (
         .clk(clk),
         .rstn(rstn),
-        .data_addr(address_ready ? addr_out[8:0] : data_addr[8:0]),
+        .data_addr(address_ready ? addr_out[7:0] : data_addr[7:0]),
         .data_write_n(scratch_write_n),
         .counter(counter_hi),
         .data_in(data_out_slice),
