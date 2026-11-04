@@ -25,6 +25,7 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire [7:0] data_from_read;
     wire [1:0] byte_in_word;
 
+`ifndef SYNTH_FPGA
     /* verilator lint_off PINMISSING */
     gf180mcu_ocd_ip_sram__sram256x8m8wm1 i_sram (
         .CLK(clk),
@@ -36,6 +37,24 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
         .Q(data_from_read)
     );
     /* verilator lint_on PINMISSING */
+`else
+    reg [3:0] buffered_data;
+    always @(posedge clk) begin
+        if (!write_enable_n && !counter[0]) begin
+            buffered_data <= data_in;
+        end
+    end
+
+    reg [7:0] sram [0:255];
+    reg [7:0] data_from_read_r;
+    always @(posedge clk) begin
+        if (!write_enable_n && counter[0]) begin
+            sram[{data_addr[ADDR_BITS-1:2], byte_in_word}] <= {data_in, buffered_data};
+        end
+        data_from_read_r <= sram[{data_addr[ADDR_BITS-1:2], byte_in_word}];
+    end
+    assign data_from_read = data_from_read_r;
+`endif
 
     assign data_out = counter[0] ? data_from_read[7:4] : data_from_read[3:0];
 
