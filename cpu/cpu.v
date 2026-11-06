@@ -131,6 +131,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [31:0] next_pc_for_core;
 
     wire [27:0] addr_out;
+    wire [3:2] addr_out_with_offset;
     wire address_ready;
     wire instr_complete_core;
     wire branch;
@@ -264,13 +265,14 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     assign data_ready_core = (counter_hi == 3'd0) ? (data_ready_ext || data_ready_latch || is_internal_addr) : data_ready_sync;
 
+    assign addr_out_with_offset = addr_out[3:2] + addr_offset;
     always @(posedge clk) begin
         if (!rstn) begin
             data_addr <= 0;
         end else if (address_ready) begin
             // Cycle address within 16-byte window for additional mem op instructions.
             // Note this only matters for peripherals - the memory controller ignores the address for data_continue.
-            data_addr <= {addr_out[27:4], addr_out[3:2] + addr_offset, addr_out[1:0]};
+            data_addr <= {addr_out[27:4], addr_out_with_offset, addr_out[1:0]};
         end
     end
 
@@ -478,7 +480,7 @@ module tinyqv_cpu #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     tinyqv_scratch #(.ADDR_BITS(8)) i_scratch (
         .clk(clk),
         .rstn(rstn),
-        .data_addr(address_ready ? addr_out[7:0] : data_addr[7:0]),
+        .data_addr(address_ready ? {addr_out[7:4], addr_out_with_offset, addr_out[1:0]} : data_addr[7:0]),
         .data_write_n(scratch_write_n),
         .counter(counter_hi),
         .data_in(data_out_slice),
