@@ -30,6 +30,17 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire cen;
     gf180mcu_as_sc_mcu7t3v3__dlybuff_2 i_cen_delay (.A(!rstn), .Y(cen));
 
+    `ifdef SLOT_0P5X0P5
+    gf180mcu_ocd_ip_sram__sram256x8m8wm1 i_sram (
+        .CLK(clk),
+        .CEN(cen),
+        .GWEN(write_enable_n),
+        .WEN(write_bit_enable_n),
+        .A({data_addr[ADDR_BITS-2:2], byte_in_word}),
+        .D({data_in, data_in}),
+        .Q(data_from_read)
+    );
+    `else
     gf180mcu_ocd_ip_sram__sram512x8m8wm1 i_sram (
         .CLK(clk),
         .CEN(cen),
@@ -39,6 +50,7 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
         .D({data_in, data_in}),
         .Q(data_from_read)
     );
+    `endif
     /* verilator lint_on PINMISSING */
 
     assign data_out = counter[0] ? data_from_read[7:4] : data_from_read[3:0];
