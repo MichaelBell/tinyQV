@@ -30,10 +30,15 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire cen;
 
     /* verilator lint_off PINMISSING */
+`ifndef SIM
     (* keep *)
     gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_cen_buf ( .Z(cen), .I(!rstn) );
     (* keep *)
     gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_gwen_buf ( .Z(write_enable_buf), .I(write_enable_n) );
+`else
+    assign cen = !rstn;
+    assign write_enable_buf = write_enable_n;
+`endif
     gf180mcu_ocd_ip_sram__sram256x8m8wm1 i_sram (
         .CLK(clk),
         .CEN(cen),
