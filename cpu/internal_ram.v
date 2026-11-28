@@ -26,11 +26,18 @@ module tinyqv_scratch #(parameter ADDR_BITS=9) (
     wire [1:0] byte_in_word;
 
 `ifndef SYNTH_FPGA
+    wire write_enable_buf;
+    wire cen;
+
     /* verilator lint_off PINMISSING */
+    (* keep *)
+    gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_cen_buf ( .Z(cen), .I(!rstn) );
+    (* keep *)
+    gf180mcu_fd_sc_mcu7t5v0__dlya_1 i_gwen_buf ( .Z(write_enable_buf), .I(write_enable_n) );
     gf180mcu_ocd_ip_sram__sram256x8m8wm1 i_sram (
         .CLK(clk),
-        .CEN(!rstn),
-        .GWEN(write_enable_n),
+        .CEN(cen),
+        .GWEN(write_enable_buf),
         .WEN(write_bit_enable_n),
         .A({data_addr[ADDR_BITS-1:2], byte_in_word}),
         .D({data_in, data_in}),
